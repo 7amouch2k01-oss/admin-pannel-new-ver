@@ -188,16 +188,11 @@ async function startServer() {
     serveStatic(app);
   }
 
-  const defaultPort = process.env.APP_TYPE === "admin" ? "3001" : "3000";
-  const preferredPort = parseInt(process.env.PORT || defaultPort);
-  const port = await findAvailablePort(preferredPort);
+  const preferredPort = parseInt(process.env.PORT || "3000");
+  const host = "0.0.0.0";
 
-  if (port !== preferredPort) {
-    console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
-  }
-
-  server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/ (${process.env.APP_TYPE || 'consumer'} mode)`);
+  server.listen(preferredPort, host, () => {
+    console.log(`[Styly Admin Panel] Server running on http://${host}:${preferredPort}/`);
   });
 }
 

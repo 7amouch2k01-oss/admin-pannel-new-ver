@@ -7,13 +7,9 @@
     "node": ">=20.19.0"
   },
   "scripts": {
-    "dev": "concurrently \"pnpm dev:consumer\" \"pnpm dev:admin\"",
-    "dev:consumer": "cross-env NODE_ENV=development APP_TYPE=consumer tsx server/_core/index.ts",
-    "dev:admin": "cross-env NODE_ENV=development APP_TYPE=admin tsx server/_core/index.ts",
+    "dev": "tsx server/_core/index.ts",
     "build": "vite build && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "start": "cross-env NODE_ENV=production APP_TYPE=consumer node dist/index.js",
-    "start:consumer": "cross-env NODE_ENV=production APP_TYPE=consumer node dist/index.js",
-    "start:admin": "cross-env NODE_ENV=production APP_TYPE=admin node dist/index.js",
+    "start": "node dist/index.js",
     "check": "tsc --noEmit",
     "format": "prettier --write .",
     "test": "vitest run",
