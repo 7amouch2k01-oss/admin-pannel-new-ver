@@ -1,0 +1,2944 @@
+import { useState, useRef, useEffect } from "react";
+import { useLocation } from "wouter";
+import { useTheme } from "@/contexts/ThemeContext";
+import AppShell from "@/components/AppShell";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { Post } from "./HomeFeed";
+import { trpc } from "@/lib/trpc";
+import { GradePanel, GradeBadge } from "@/components/GradePanel";
+import { useLanguage } from "@/contexts/LanguageContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  Building,
+  User,
+  ShoppingBag,
+  Users,
+  DollarSign,
+  Settings as SettingsIcon,
+  Plus,
+  Heart,
+  Upload,
+  Sparkles,
+  CheckCircle,
+  FileText,
+  AlertCircle,
+  LogOut,
+  Building2,
+  Trash2,
+  X,
+  Shirt,
+  Image as ImageIcon,
+  Tag,
+  TrendingUp,
+  Star,
+  Award,
+  Lock,
+  HelpCircle,
+  Shield,
+  Edit3,
+  Camera,
+  Truck,
+  Package,
+  MapPin,
+  Clock,
+  CheckCircle2,
+  Globe,
+  Ban,
+  Undo2,
+  ShieldCheck,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { calculateBodyShape, type BodyMeasurements, type BodyShapeResult } from "@/utils/bodyShape";
+
+// ─── Interfaces & Types ──────────────────────────────────────────────────────
+
+type ProfileTab = "outfits" | "orders" | "followers" | "profits" | "settings";
+type OutfitsSubTab = "created" | "wardrobe" | "loved" | "stylista";
+
+interface BrandRegistration {
+  fullName: string;
+  role: string;
+  email: string;
+  phone: string;
+  ownerIdFile: string;
+  brandName: string;
+  password?: string;
+}
+
+const LEVELS = [
+  { name: "Starter", emoji: "🌱", minXP: 0, commission: 1, color: "#94a3b8" },
+  { name: "Influencer", emoji: "✨", minXP: 200, commission: 2, color: "#60a5fa" },
+  { name: "Ambassador", emoji: "🔥", minXP: 600, commission: 3, color: "#f97316" },
+  { name: "Expert", emoji: "💎", minXP: 1500, commission: 4, color: "#a78bfa" },
+  { name: "Elite Creator", emoji: "👑", minXP: 4000, commission: 5, color: "#fbbf24" },
+];
+
+
+// ─── Body Shape Calculator Component ─────────────────────────────────────────
+
+const SHAPE_COLORS: Record<string, string> = {
+  "Hourglass":         "text-rose-500",
+  "Bottom Hourglass":  "text-pink-500",
+  "Top Hourglass":     "text-fuchsia-500",
+  "Spoon":             "text-amber-500",
+  "Triangle":          "text-orange-500",
+  "Inverted Triangle": "text-blue-500",
+  "Rectangle":         "text-teal-500",
+};
+
+const LS_KEY = "styly_body_shape_measurements";
+
+function BodyShapeCalculator() {
+  const saveMutation = trpc.mannequin.save.useMutation();
+  const saved = (() => {
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch { return null; }
+  })();
+
+  const [unit, setUnit] = useState<"cm" | "inches">(saved?.unit || "cm");
+  const [bust,    setBust]    = useState<string>(saved?.bust    != null ? String(saved.bust)    : "");
+  const [waist,   setWaist]   = useState<string>(saved?.waist   != null ? String(saved.waist)   : "");
+  const [highHip, setHighHip] = useState<string>(saved?.highHip != null ? String(saved.highHip) : "");
+  const [hip,     setHip]     = useState<string>(saved?.hip     != null ? String(saved.hip)     : "");
+  const [result,  setResult]  = useState<BodyShapeResult | null>(saved?.result || null);
+  const [open,    setOpen]    = useState<boolean>(false);
+  const [error,   setError]   = useState<string>("");
+
+  const handleCalculate = () => {
+    setError("");
+    const b = parseFloat(bust);
+    const w = parseFloat(waist);
+    const hh = parseFloat(highHip);
+    const h = parseFloat(hip);
+    if ([b, w, hh, h].some(n => isNaN(n) || n <= 0)) {
+      setError("Please enter valid measurements for all 4 fields.");
+      return;
+    }
+    const measurements: BodyMeasurements = { bust: b, waist: w, highHip: hh, hip: h, unit };
+    const res = calculateBodyShape(measurements);
+    setResult(res);
+    // Persist locally
+    const toStore = { bust: b, waist: w, highHip: hh, hip: h, unit, result: res };
+    localStorage.setItem(LS_KEY, JSON.stringify(toStore));
+    // Persist to server (via mannequin mutation)
+    saveMutation.mutate({
+      bust: b,
+      waist: w,
+      highHip: hh,
+      hips: h,
+      unit,
+      bodyShape: res.shape,
+    }, {
+      onSuccess: () => toast.success("Body shape saved to your profile!"),
+      onError: () => {},  // silent — local save is the primary UX
+    });
+  };
+
+  const inputCls = "w-full bg-muted/50 border border-border/40 rounded-xl px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40";
+
+  return (
+    <div className="bg-white dark:bg-[#1A1A1A] border border-border/30 rounded-3xl p-5 shadow-sm space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h3 className="font-extrabold text-sm flex items-center gap-1.5 text-primary">
+          <span>📐</span> Body Shape Calculator
+        </h3>
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="text-[10px] bg-primary/10 text-primary rounded-full px-2 py-0.5 font-bold hover:bg-primary/20 transition-colors"
+        >
+          {open ? "▲ Hide" : "▼ Calculate"}
+        </button>
+      </div>
+
+      {/* Saved result preview (always visible) */}
+      {result && !open && (
+        <div className={`flex items-center gap-2 text-sm font-bold ${SHAPE_COLORS[result.shape] || "text-foreground"}`}>
+          <span className="text-xl">{result.emoji}</span>
+          <div>
+            <p className="text-xs text-muted-foreground font-semibold">Your body shape</p>
+            <p>{result.shape}</p>
+          </div>
+          <span className="ml-auto text-[10px] text-muted-foreground font-semibold">
+            WHR {result.whr}
+          </span>
+        </div>
+      )}
+
+      {/* Expanded form */}
+      {open && (
+        <div className="space-y-4">
+          {/* Unit toggle */}
+          <div className="flex gap-2">
+            {(["cm", "inches"] as const).map(u => (
+              <button
+                key={u}
+                onClick={() => setUnit(u)}
+                className={`flex-1 h-8 rounded-xl text-xs font-bold transition-all ${
+                  unit === u
+                    ? "bg-primary text-white shadow"
+                    : "bg-muted/40 text-muted-foreground hover:bg-muted/70"
+                }`}
+              >
+                {u}
+              </button>
+            ))}
+          </div>
+
+          {/* Input fields */}
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: "Bust",     val: bust,    set: setBust },
+              { label: "Waist",    val: waist,   set: setWaist },
+              { label: "High Hip", val: highHip, set: setHighHip },
+              { label: "Hip",      val: hip,     set: setHip },
+            ].map(({ label, val, set }) => (
+              <div key={label} className="space-y-1">
+                <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wide">
+                  {label} ({unit})
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={val}
+                  onChange={e => set(e.target.value)}
+                  placeholder="0"
+                  className={inputCls}
+                />
+              </div>
+            ))}
+          </div>
+
+          {error && (
+            <p className="text-[11px] text-destructive font-semibold">{error}</p>
+          )}
+
+          <button
+            onClick={handleCalculate}
+            className="w-full h-10 rounded-full bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all shadow-md"
+          >
+            ✨ Calculate My Shape
+          </button>
+
+          {/* Result */}
+          {result && (
+            <div className="space-y-3 pt-1 border-t border-border/20">
+              {/* Shape badge */}
+              <div className={`flex items-center gap-2 font-bold ${SHAPE_COLORS[result.shape] || "text-foreground"}`}>
+                <span className="text-2xl">{result.emoji}</span>
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Body shape</p>
+                  <p className="text-sm">{result.shape}</p>
+                </div>
+                <div className="ml-auto text-right">
+                  <p className="text-[10px] text-muted-foreground">WHR</p>
+                  <p className="text-sm">{result.whr}</p>
+                </div>
+              </div>
+
+              {/* WHR health indicator */}
+              <div className="p-2 rounded-xl bg-muted/40 border border-border/10 text-[10px] text-muted-foreground leading-relaxed">
+                <span className="font-bold text-foreground">Waist-Hip Ratio: </span>
+                {result.whr}
+                {result.whr <= 0.80
+                  ? " ✅ Within healthy range (≤ 0.80 for women)"
+                  : " ⚠️ Above recommended range (> 0.80 for women)"}
+              </div>
+
+              {/* Description */}
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                {result.description}
+              </p>
+
+              {/* Styling tips */}
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-extrabold text-foreground uppercase tracking-wide">
+                  Styling Tips
+                </p>
+                {result.tips.map((tip, i) => (
+                  <div key={i} className="flex gap-2 text-[11px] text-muted-foreground leading-relaxed">
+                    <span className="text-primary mt-px shrink-0">•</span>
+                    <span>{tip}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Profits & Withdrawals Panel ──────────────────────────────────────────────
+
+function ProfitsAndWithdrawalsPanel() {
+  const { data: financials, isLoading, refetch } = trpc.withdrawals.userFinancials.useQuery();
+  const requestWithdrawalMutation = trpc.withdrawals.requestUserWithdrawal.useMutation();
+
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [activeSubTab, setActiveSubTab] = useState<"earnings" | "withdrawals">("earnings");
+
+  // Withdrawal form state
+  const [amount, setAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"d17" | "flouci" | "bank_transfer" | "cash_pickup">("d17");
+  const [phone, setPhone] = useState("");
+  const [flouciNumber, setFlouciNumber] = useState("");
+  const [rib, setRib] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [beneficiaryName, setBeneficiaryName] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const availableBalance = financials?.availableBalance ?? 0;
+  const totalEarned = financials?.totalEarned ?? 0;
+  const totalWithdrawn = financials?.totalWithdrawn ?? 0;
+  const pendingWithdrawal = financials?.pendingWithdrawal ?? 0;
+  const commissions = financials?.commissions ?? [];
+  const withdrawals = financials?.withdrawals ?? [];
+
+  const handleQuickAmount = (ratio: number) => {
+    const calculated = Math.floor(availableBalance * ratio * 10) / 10;
+    setAmount(calculated.toString());
+  };
+
+  const handleWithdrawSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount) || numAmount < 50) {
+      toast.error("Minimum withdrawal amount is 50 TND");
+      return;
+    }
+    if (numAmount > availableBalance) {
+      toast.error(`Amount exceeds available balance (${availableBalance} TND)`);
+      return;
+    }
+
+    if (paymentMethod === "d17" && !phone) {
+      toast.error("Please provide your D17 phone number");
+      return;
+    }
+    if (paymentMethod === "flouci" && !flouciNumber) {
+      toast.error("Please provide your Flouci account number");
+      return;
+    }
+    if (paymentMethod === "bank_transfer" && (!rib || !bankName)) {
+      toast.error("Please enter both bank name and 20-digit RIB");
+      return;
+    }
+
+    try {
+      await requestWithdrawalMutation.mutateAsync({
+        amount: numAmount,
+        paymentMethod,
+        paymentDetails: {
+          phone,
+          flouciNumber,
+          rib,
+          bankName,
+          beneficiaryName,
+          notes,
+        },
+      });
+      toast.success("Withdrawal request submitted! Admin will process your payout. 💸");
+      setShowWithdrawModal(false);
+      setAmount("");
+      setNotes("");
+      await refetch();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to submit withdrawal request");
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="bg-white dark:bg-[#1A1A1A] border border-border/40 rounded-3xl p-6 shadow-sm">
+        <div className="space-y-4">
+          <div className="h-32 rounded-2xl bg-muted/40 animate-pulse" />
+          <div className="h-14 rounded-xl bg-muted/30 animate-pulse" />
+          <div className="h-14 rounded-xl bg-muted/30 animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5 animate-fade-up">
+      {/* ─── Main Wallet Balance Card ─── */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-neutral-900 via-[#1e1315] to-[#12080a] text-white p-6 shadow-xl border border-rose-500/20">
+        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-44 h-44 bg-gradient-to-br from-rose-500/20 to-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-36 h-36 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold tracking-widest text-rose-400 uppercase flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-rose-400" />
+                Creator Commission Wallet
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                Live Synced
+              </span>
+            </div>
+
+            <div>
+              <p className="text-xs text-neutral-400 font-medium">Available for Withdrawal</p>
+              <div className="flex items-baseline gap-2 mt-0.5">
+                <span className="text-4xl font-black tracking-tight text-white font-mono">
+                  {availableBalance.toFixed(2)}
+                </span>
+                <span className="text-lg font-bold text-rose-400">TND</span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-neutral-400 max-w-sm">
+              Earned from brand-approved posts and outfit sales. Minimum threshold to withdraw is <strong className="text-rose-400">50.00 TND</strong>.
+            </p>
+
+            {availableBalance < 50 && (
+              <div className="space-y-1.5 pt-1 max-w-xs">
+                <div className="flex items-center justify-between text-[10px] text-neutral-400 font-semibold">
+                  <span>Progress to withdrawal</span>
+                  <span className="font-mono text-rose-400">{availableBalance.toFixed(1)} / 50.0 TND</span>
+                </div>
+                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-rose-500 to-orange-500 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min(100, Math.max(0, (availableBalance / 50) * 100))}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col sm:flex-row md:flex-col gap-2 shrink-0">
+            <button
+              onClick={() => setShowWithdrawModal(true)}
+              disabled={availableBalance < 50}
+              className={`px-6 py-3.5 rounded-2xl font-black text-xs transition-all shadow-lg flex items-center justify-center gap-2 ${
+                availableBalance >= 50
+                  ? "bg-gradient-to-r from-rose-500 via-rose-600 to-orange-500 text-white hover:opacity-95 hover:shadow-rose-500/25 active:scale-95"
+                  : "bg-neutral-800 text-neutral-500 border border-neutral-700 cursor-not-allowed"
+              }`}
+            >
+              <DollarSign className="h-4 w-4" />
+              {availableBalance >= 50 ? "Withdraw Profits" : "Min 50.00 TND to Withdraw"}
+            </button>
+
+            {pendingWithdrawal > 0 && (
+              <div className="text-center md:text-right text-[11px] text-amber-400 font-semibold flex items-center justify-center md:justify-end gap-1">
+                <Clock className="h-3 w-3" />
+                {pendingWithdrawal.toFixed(2)} TND pending review
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 3 Quick Financial Sub-metrics */}
+        <div className="grid grid-cols-3 gap-2 mt-6 pt-5 border-t border-white/10 text-center">
+          <div className="bg-white/5 rounded-2xl p-2.5 border border-white/5">
+            <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Total Earned</p>
+            <p className="text-sm font-black text-emerald-400 font-mono mt-0.5">+{totalEarned.toFixed(1)} TND</p>
+          </div>
+          <div className="bg-white/5 rounded-2xl p-2.5 border border-white/5">
+            <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Withdrawn</p>
+            <p className="text-sm font-black text-white font-mono mt-0.5">{totalWithdrawn.toFixed(1)} TND</p>
+          </div>
+          <div className="bg-white/5 rounded-2xl p-2.5 border border-white/5">
+            <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider">Pending</p>
+            <p className="text-sm font-black text-amber-400 font-mono mt-0.5">{pendingWithdrawal.toFixed(1)} TND</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Tabs Switcher: Commission History vs Withdrawals ─── */}
+      <div className="bg-white dark:bg-[#1A1A1A] border border-border/40 rounded-3xl p-5 space-y-4 shadow-sm text-left">
+        <div className="flex items-center justify-between pb-3 border-b border-border/10">
+          <div className="flex bg-muted/60 p-1 rounded-xl border border-border/30">
+            <button
+              onClick={() => setActiveSubTab("earnings")}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                activeSubTab === "earnings"
+                  ? "bg-foreground text-background shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Commissions ({commissions.length})
+            </button>
+            <button
+              onClick={() => setActiveSubTab("withdrawals")}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                activeSubTab === "withdrawals"
+                  ? "bg-foreground text-background shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Withdrawals ({withdrawals.length})
+            </button>
+          </div>
+
+          <span className="text-[11px] text-muted-foreground font-medium">
+            {activeSubTab === "earnings" ? "Commissions from approved posts" : "Payout requests to D17/Bank"}
+          </span>
+        </div>
+
+        {/* ── TAB: Earnings / Commissions List ── */}
+        {activeSubTab === "earnings" && (
+          <div className="space-y-2.5">
+            {commissions.length === 0 ? (
+              <div className="py-10 text-center space-y-2">
+                <DollarSign className="h-10 w-10 text-muted-foreground/30 mx-auto" />
+                <p className="text-sm font-bold">No commissions yet</p>
+                <p className="text-xs text-muted-foreground">
+                  Tag registered brands in your outfits. When they approve your post, your commission is credited instantly!
+                </p>
+              </div>
+            ) : (
+              commissions.map((comm: any) => (
+                <div key={comm.id} className="flex items-center justify-between p-3.5 rounded-2xl bg-muted/30 border border-border/20 text-xs">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <span className="font-black text-foreground">{comm.description || "Brand Commission"}</span>
+                      {comm.brandId && <span className="text-[10px] text-muted-foreground">(Brand #{comm.brandId})</span>}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      {comm.createdAt ? new Date(comm.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "—"}
+                    </p>
+                  </div>
+                  <div className="text-right space-y-1">
+                    <p className="font-black text-emerald-500 font-mono">+{(comm.amount || 0).toFixed(2)} TND</p>
+                    <span className={`inline-block text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                      comm.status === "paid" || comm.status === "approved"
+                        ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                        : comm.status === "rejected"
+                        ? "bg-red-500/10 text-red-500 border border-red-500/20"
+                        : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                    }`}>
+                      {comm.status === "approved" ? "Credited" : (comm.status || "pending")}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* ── TAB: Withdrawals Payout History List ── */}
+        {activeSubTab === "withdrawals" && (
+          <div className="space-y-2.5">
+            {withdrawals.length === 0 ? (
+              <div className="py-10 text-center space-y-2">
+                <Clock className="h-10 w-10 text-muted-foreground/30 mx-auto" />
+                <p className="text-sm font-bold">No withdrawal requests yet</p>
+                <p className="text-xs text-muted-foreground">
+                  When you request a payout from your available balance, track the status here.
+                </p>
+              </div>
+            ) : (
+              withdrawals.map((w: any) => (
+                <div key={w.id} className="flex items-center justify-between p-3.5 rounded-2xl bg-muted/30 border border-border/20 text-xs">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-foreground">Withdrawal #{w.id}</span>
+                      <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-muted border border-border/40 font-bold">
+                        {w.paymentMethod}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      {w.createdAt ? new Date(w.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}
+                      {w.paymentDetails?.phone && ` • ${w.paymentDetails.phone}`}
+                      {w.paymentDetails?.rib && ` • RIB ...${w.paymentDetails.rib.slice(-4)}`}
+                    </p>
+                    {w.rejectionReason && (
+                      <p className="text-[11px] text-red-500 font-medium mt-1">
+                        Reason: {w.rejectionReason}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right space-y-1">
+                    <p className="font-black text-foreground font-mono">{(w.amount || 0).toFixed(2)} TND</p>
+                    <span className={`inline-block text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                      w.status === "completed"
+                        ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                        : w.status === "approved"
+                        ? "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+                        : w.status === "rejected"
+                        ? "bg-red-500/10 text-red-500 border border-red-500/20"
+                        : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                    }`}>
+                      {w.status || "pending"}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ─── Payout Request Modal ─── */}
+      <Dialog open={showWithdrawModal} onOpenChange={setShowWithdrawModal}>
+        <DialogContent className="max-w-md rounded-3xl p-6 border border-border/60 bg-white dark:bg-[#1A1A1A]">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black flex items-center gap-2 text-foreground">
+              <DollarSign className="h-5 w-5 text-rose-500" />
+              Withdraw Creator Profits
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleWithdrawSubmit} className="space-y-4 mt-3">
+            {/* Balance info banner */}
+            <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-between text-xs">
+              <span className="text-muted-foreground font-semibold">Available to Withdraw:</span>
+              <span className="font-mono font-black text-rose-500 text-sm">{availableBalance.toFixed(2)} TND</span>
+            </div>
+
+            {/* Amount input */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">Withdrawal Amount (TND)</label>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="0.1"
+                  min="50"
+                  max={availableBalance}
+                  placeholder="e.g. 50"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="w-full h-11 pl-4 pr-16 rounded-xl bg-muted border border-border/60 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                  required
+                />
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+                  TND
+                </span>
+              </div>
+
+              {/* Quick amount shortcuts */}
+              <div className="flex gap-2 mt-2">
+                {[
+                  { label: "25%", val: 0.25 },
+                  { label: "50%", val: 0.5 },
+                  { label: "75%", val: 0.75 },
+                  { label: "Max (100%)", val: 1 },
+                ].map((q) => (
+                  <button
+                    type="button"
+                    key={q.label}
+                    onClick={() => handleQuickAmount(q.val)}
+                    className="flex-1 py-1 rounded-lg bg-muted/60 hover:bg-muted text-[10px] font-bold border border-border/30 transition-all"
+                  >
+                    {q.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Payment Method Selector */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">Select Payout Method</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: "d17", label: "📱 D17 (La Poste)" },
+                  { id: "flouci", label: "💸 Flouci Wallet" },
+                  { id: "bank_transfer", label: "🏦 Bank Transfer (RIB)" },
+                  { id: "cash_pickup", label: "💵 Cash Pickup" },
+                ].map((m) => (
+                  <button
+                    type="button"
+                    key={m.id}
+                    onClick={() => setPaymentMethod(m.id as any)}
+                    className={`p-2.5 rounded-xl border text-xs font-bold transition-all text-left ${
+                      paymentMethod === m.id
+                        ? "bg-rose-500/10 border-rose-500 text-rose-500 dark:text-rose-400"
+                        : "bg-muted/40 border-border/40 text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Dynamic payment details based on selected method */}
+            {paymentMethod === "d17" && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground">D17 Phone Number</label>
+                <input
+                  type="tel"
+                  placeholder="e.g. 50 123 456"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl bg-muted border border-border/60 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                  required
+                />
+              </div>
+            )}
+
+            {paymentMethod === "flouci" && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground">Flouci Account Number / Phone</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 98 765 432"
+                  value={flouciNumber}
+                  onChange={(e) => setFlouciNumber(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl bg-muted border border-border/60 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                  required
+                />
+              </div>
+            )}
+
+            {paymentMethod === "bank_transfer" && (
+              <div className="space-y-2">
+                <div>
+                  <label className="text-xs font-bold text-foreground">Bank Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. BIAT, Attijari, BNA..."
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl bg-muted border border-border/60 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-foreground">RIB (20 digits)</label>
+                  <input
+                    type="text"
+                    maxLength={20}
+                    placeholder="08 000 0000000000000 00"
+                    value={rib}
+                    onChange={(e) => setRib(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl bg-muted border border-border/60 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-foreground">Beneficiary Full Name</label>
+                  <input
+                    type="text"
+                    placeholder="Account holder name"
+                    value={beneficiaryName}
+                    onChange={(e) => setBeneficiaryName(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl bg-muted border border-border/60 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                  />
+                </div>
+              </div>
+            )}
+
+            {paymentMethod === "cash_pickup" && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground">National Identity / Full Name</label>
+                <input
+                  type="text"
+                  placeholder="Full name as on CIN"
+                  value={beneficiaryName}
+                  onChange={(e) => setBeneficiaryName(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl bg-muted border border-border/60 text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/30"
+                />
+              </div>
+            )}
+
+            {/* Notes */}
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-muted-foreground">Additional Notes (Optional)</label>
+              <input
+                type="text"
+                placeholder="Any instructions for admin..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="w-full h-9 px-3 rounded-xl bg-muted/60 border border-border/40 text-xs focus:outline-none"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-border/20">
+              <button
+                type="button"
+                onClick={() => setShowWithdrawModal(false)}
+                className="px-4 py-2.5 rounded-xl border border-border/60 text-xs font-bold hover:bg-muted transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={requestWithdrawalMutation.isPending}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-orange-500 text-white text-xs font-black shadow-md hover:opacity-95 transition-all"
+              >
+                {requestWithdrawalMutation.isPending ? "Submitting..." : "Confirm & Submit"}
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── Orders Tracking Panel ────────────────────────────────────────────────────
+
+const SHIP_STATUS_STEPS = ["pending", "preparing", "ready_for_pickup", "shipped", "delivered"];
+
+const SHIP_STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
+  pending:          { label: "Pending",          color: "text-amber-500",   bg: "bg-amber-50 dark:bg-amber-900/20" },
+  preparing:        { label: "Preparing",        color: "text-blue-500",    bg: "bg-blue-50 dark:bg-blue-900/20" },
+  ready_for_pickup: { label: "Ready for Pickup", color: "text-purple-500",  bg: "bg-purple-50 dark:bg-purple-900/20" },
+  shipped:          { label: "Shipped",          color: "text-indigo-500",  bg: "bg-indigo-50 dark:bg-indigo-900/20" },
+  delivered:        { label: "Delivered",        color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-900/20" },
+  canceled:         { label: "Canceled",         color: "text-red-500",     bg: "bg-red-50 dark:bg-red-900/20" },
+};
+
+function OrdersTrackingPanel() {
+  const { data: orders = [], isLoading, refetch } = trpc.delivery.myOrders.useQuery();
+  const cancelOrderMutation = trpc.orders.cancelOrder.useMutation();
+  const requestRefundMutation = trpc.orders.requestRefund.useMutation();
+
+  const [refundModalOrder, setRefundModalOrder] = useState<any | null>(null);
+  const [refundReason, setRefundReason] = useState("");
+  const [cancelModalOrder, setCancelModalOrder] = useState<any | null>(null);
+
+  const handleConfirmCancel = async () => {
+    if (!cancelModalOrder) return;
+    try {
+      await cancelOrderMutation.mutateAsync({ orderId: cancelModalOrder.id });
+      await refetch();
+      toast.success(`Order #${cancelModalOrder.id} has been canceled.`);
+      setCancelModalOrder(null);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to cancel order");
+    }
+  };
+
+  const handleConfirmRefund = async () => {
+    if (!refundModalOrder || !refundReason.trim()) {
+      toast.error("Please explain why you are requesting a refund");
+      return;
+    }
+    try {
+      await requestRefundMutation.mutateAsync({
+        orderId: refundModalOrder.id,
+        reason: refundReason.trim(),
+      });
+      await refetch();
+      toast.success("Refund request submitted to Styly admin team!");
+      setRefundModalOrder(null);
+      setRefundReason("");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to submit refund request");
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  if (orders.length === 0) {
+    return (
+      <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-border/40 p-5 text-center py-12 space-y-3 shadow-sm animate-fade-up">
+        <ShoppingBag className="h-12 w-12 text-muted-foreground/45 mx-auto" />
+        <h3 className="text-base font-bold">No orders placed yet</h3>
+        <p className="text-xs text-muted-foreground">Products you purchase from social posts will appear here.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 animate-fade-up">
+      {orders.map((order: any) => {
+        const orderDate = new Date(order.createdAt).getTime();
+        const hoursPassed = (Date.now() - orderDate) / (1000 * 60 * 60);
+        const canSelfCancel = hoursPassed <= 3 && order.status !== "delivered" && order.status !== "canceled" && order.status !== "refunded" && order.status !== "refund_requested";
+        const isDelivered = order.status === "delivered";
+        const isRefundRequested = order.status === "refund_requested";
+        const isCanceled = order.status === "canceled";
+        const isRefunded = order.status === "refunded";
+        const remainingMinutes = Math.max(0, Math.floor(180 - hoursPassed * 60));
+
+        return (
+          <div key={order.id} className={`bg-white dark:bg-[#1A1A1A] rounded-2xl border shadow-sm overflow-hidden transition ${
+            isCanceled ? "border-rose-500/30 opacity-80" : isRefundRequested ? "border-amber-500/40" : "border-border/30"
+          }`}>
+            {/* Order header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border/20 bg-muted/30 flex-wrap gap-2">
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-black">Order #{order.id}</p>
+                  {isCanceled && (
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-500 border border-rose-500/30">
+                      Canceled
+                    </span>
+                  )}
+                  {isRefundRequested && (
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/30 animate-pulse">
+                      Refund Requested
+                    </span>
+                  )}
+                  {isRefunded && (
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-500 border border-purple-500/30">
+                      Refunded
+                    </span>
+                  )}
+                  {isDelivered && (
+                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/30">
+                      Delivered
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {new Date(order.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })} at {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-black text-primary">{order.totalAmount?.toLocaleString()} TND</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1 justify-end">
+                  <MapPin className="h-2.5 w-2.5" /> {order.city || order.shippingAddress || "—"}
+                </p>
+              </div>
+            </div>
+
+            {/* Shipments */}
+            <div className="divide-y divide-border/15">
+              {(order.shipments ?? []).map((sh: any) => {
+                const cfg = SHIP_STATUS_CFG[sh.status] ?? SHIP_STATUS_CFG.pending;
+                const stepIdx = SHIP_STATUS_STEPS.indexOf(sh.status);
+                const shIsCanceled = sh.status === "canceled";
+                return (
+                  <div key={sh.id} className="p-4 space-y-3">
+                    {/* Brand + status */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <Package className="h-3.5 w-3.5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold">{sh.brandName}</p>
+                          <p className="text-[10px] text-muted-foreground">Shipment #{sh.id}</p>
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${cfg.color} ${cfg.bg}`}>
+                        {cfg.label}
+                      </span>
+                    </div>
+
+                    {/* Progress timeline */}
+                    {!shIsCanceled && (
+                      <div className="flex items-center gap-0">
+                        {SHIP_STATUS_STEPS.map((step, i) => {
+                          const done = i <= stepIdx;
+                          const isLast = i === SHIP_STATUS_STEPS.length - 1;
+                          return (
+                            <div key={step} className="flex items-center flex-1">
+                              <div className={`h-2 w-2 rounded-full shrink-0 transit-all ${done ? "bg-primary" : "bg-border"}`} />
+                              {!isLast && (
+                                <div className={`flex-1 h-0.5 transit-all ${i < stepIdx ? "bg-primary" : "bg-border"}`} />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Tracking info */}
+                    {sh.carrier && (
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground bg-muted/40 rounded-lg px-3 py-1.5">
+                        <Truck className="h-3 w-3 text-primary shrink-0" />
+                        <span className="font-semibold">{sh.carrier}</span>
+                        {sh.trackingNumber && <span className="font-mono ml-1 text-foreground">{sh.trackingNumber}</span>}
+                        {sh.estimatedDeliveryDate && (
+                          <span className="ml-auto">ETA: {new Date(sh.estimatedDeliveryDate).toLocaleDateString()}</span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Items in this shipment */}
+                    {sh.items?.length > 0 && (
+                      <div className="space-y-1.5">
+                        {sh.items.map((item: any) => (
+                          <div key={item.id} className="flex items-center gap-2 text-xs">
+                            {item.productImage && (
+                              <img src={item.productImage} alt={item.productName} className="h-8 w-8 rounded-lg object-cover shrink-0" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold truncate">{item.productName ?? "Item"}</p>
+                              <p className="text-[10px] text-muted-foreground">
+                                ×{item.quantity}{item.size ? ` · ${item.size}` : ""}
+                              </p>
+                            </div>
+                            <p className="font-bold text-primary shrink-0">{(item.priceAtPurchase * item.quantity).toLocaleString()} TND</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Order Cancellation & Refund Action Footer */}
+            <div className="p-3 bg-muted/20 border-t border-border/20 flex items-center justify-between gap-3 flex-wrap">
+              {canSelfCancel && (
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-medium">
+                    <Clock className="h-3.5 w-3.5 text-amber-500" />
+                    Cancel available for next {remainingMinutes} min(s)
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setCancelModalOrder(order)}
+                    className="rounded-xl text-xs font-bold border-rose-500/30 text-rose-500 hover:bg-rose-500/10 h-8"
+                  >
+                    <Ban size={13} className="mr-1.5" />
+                    Cancel Order
+                  </Button>
+                </div>
+              )}
+
+              {!canSelfCancel && !isDelivered && !isCanceled && !isRefunded && !isRefundRequested && (
+                <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                  Order is being fulfilled. After delivery, you can request a return & refund if needed.
+                </div>
+              )}
+
+              {isDelivered && (
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Package delivered safely
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setRefundModalOrder(order);
+                      setRefundReason("");
+                    }}
+                    className="rounded-xl text-xs font-bold border-purple-500/30 text-purple-500 hover:bg-purple-500/10 h-8"
+                  >
+                    <Undo2 size={13} className="mr-1.5" />
+                    Request Refund / Return
+                  </Button>
+                </div>
+              )}
+
+              {isRefundRequested && (
+                <div className="text-[11px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1.5 w-full bg-amber-500/10 p-2 rounded-xl border border-amber-500/20">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>Refund request under review by Styly support team. Reason: <em>"{order.refundReason}"</em></span>
+                </div>
+              )}
+
+              {isCanceled && (
+                <div className="text-[11px] text-rose-500 font-medium flex items-center gap-1">
+                  <Ban className="h-3.5 w-3.5" />
+                  This order was canceled {order.cancelReason ? `(${order.cancelReason})` : ""}.
+                </div>
+              )}
+
+              {isRefunded && (
+                <div className="text-[11px] text-purple-500 font-medium flex items-center gap-1">
+                  <Undo2 className="h-3.5 w-3.5" />
+                  Refund of {order.totalAmount} TND processed.
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Customer Cancel Confirmation Modal */}
+      <Dialog open={!!cancelModalOrder} onOpenChange={() => setCancelModalOrder(null)}>
+        <DialogContent className="max-w-sm rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2 text-rose-500">
+              <Ban className="h-5 w-5" />
+              Cancel Order #{cancelModalOrder?.id}?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground mt-2">
+            Are you sure you want to cancel this order? This action cannot be undone.
+          </p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCancelModalOrder(null)}
+              className="rounded-xl text-xs"
+            >
+              Keep Order
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleConfirmCancel}
+              disabled={cancelOrderMutation.isPending}
+              className="rounded-xl text-xs bg-rose-600 hover:bg-rose-500 text-white font-bold"
+            >
+              {cancelOrderMutation.isPending ? "Canceling..." : "Yes, Cancel Order"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Customer Post-Delivery Refund Request Modal */}
+      <Dialog open={!!refundModalOrder} onOpenChange={() => setRefundModalOrder(null)}>
+        <DialogContent className="max-w-md rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2 text-purple-500">
+              <Undo2 className="h-5 w-5" />
+              Request Refund for Order #{refundModalOrder?.id}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground mt-1">
+            Please tell us why you are requesting a return or refund for this delivered package ({refundModalOrder?.totalAmount} TND).
+          </p>
+          <div className="space-y-3 mt-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">Reason for Refund</label>
+              <textarea
+                rows={3}
+                placeholder="e.g. Size didn't fit, item defective or not matching the photos..."
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                className="w-full p-3 rounded-xl bg-muted border border-border/60 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500/30 resize-none"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setRefundModalOrder(null)}
+                className="rounded-xl text-xs font-bold"
+              >
+                Close
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleConfirmRefund}
+                disabled={requestRefundMutation.isPending}
+                className="rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white"
+              >
+                {requestRefundMutation.isPending ? "Submitting..." : "Submit Refund Request"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── Main Component ────────────────────────────────────────────────────────────
+
+export default function UserProfile() {
+  const [, setLocation] = useLocation();
+  const { theme, toggleTheme } = useTheme();
+  const { user, loading, logout } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
+
+  // Active view states
+  const [activeTab, setActiveTab] = useState<ProfileTab>("outfits");
+  const [activeSubTab, setActiveSubTab] = useState<OutfitsSubTab>("created");
+
+  const deliveryProfileQuery = trpc.userProfile.getDeliveryProfile.useQuery(undefined, { enabled: !!user });
+  const updateDeliveryMutation = trpc.userProfile.updateDeliveryProfile.useMutation({
+    onSuccess: () => { toast.success('Delivery profile saved!'); deliveryProfileQuery.refetch(); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const [deliveryForm, setDeliveryForm] = useState({ phone: '', deliveryAddress: '', deliveryCity: '', deliveryPostCode: '', deliveryCountry: 'Tunisia' });
+
+  useEffect(() => {
+    if (deliveryProfileQuery.data) {
+      const p = deliveryProfileQuery.data;
+      setDeliveryForm({ phone: p.phone || '', deliveryAddress: p.deliveryAddress || '', deliveryCity: p.deliveryCity || '', deliveryPostCode: p.deliveryPostCode || '', deliveryCountry: p.deliveryCountry || 'Tunisia' });
+    }
+  }, [deliveryProfileQuery.data]);
+
+  // Mannequin model state
+  const [mannequin, setMannequin] = useState<{
+    gender: "man" | "woman";
+    height: string;
+    weight: string;
+    nickname: string;
+    hasModel: boolean;
+  }>({
+    gender: "woman",
+    height: "172",
+    weight: "62",
+    nickname: "Marwa_62kg",
+    hasModel: false
+  });
+
+  // ── Settings modal states ──
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [showGrade, setShowGrade] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
+
+  // Edit profile form
+  const [editName, setEditName] = useState("Aria F.");
+  const [editBio, setEditBio] = useState("Fashion curator & AI stylist enthusiast. Exploring the future of personal style.");
+  const [editUsername, setEditUsername] = useState("AriaF");
+  const [editEmail, setEditEmail] = useState(user?.email || "");
+
+  // Grade / level — load from localStorage
+  const [userXP, setUserXP] = useState<number>(() => {
+    return Number(localStorage.getItem("styly_xp") || "120");
+  });
+  const [taggedPosts, setTaggedPosts] = useState<number>(() => {
+    return Number(localStorage.getItem("styly_tagged_posts") || "12");
+  });
+  const [totalEarned, setTotalEarned] = useState<number>(() => {
+    return Number(localStorage.getItem("styly_earned") || "24");
+  });
+
+  // Calculate current level, next level, and progress percentage dynamically based on userXP
+  const curLevel = [...LEVELS].reverse().find(l => userXP >= l.minXP) || LEVELS[0];
+  const nextLevel = LEVELS.find(l => l.minXP > userXP);
+  const prevLevelMin = curLevel.minXP;
+  const nextLevelMin = nextLevel ? nextLevel.minXP : curLevel.minXP;
+  const progress = nextLevel
+    ? Math.min(100, Math.floor(((userXP - prevLevelMin) / (nextLevelMin - prevLevelMin)) * 100))
+    : 100;
+
+  // Brand registration flow states
+  const [showBrandPromo, setShowBrandPromo] = useState(false);
+  const [showBrandForm, setShowBrandForm] = useState(false);
+  const [brandRegistered, setBrandRegistered] = useState(false);
+  const [ownerIdFileName, setOwnerIdFileName] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [form, setForm] = useState<BrandRegistration>({
+    fullName: "",
+    role: "",
+    email: "",
+    phone: "",
+    ownerIdFile: "",
+    brandName: "",
+    password: "",
+  });
+
+  // tRPC Queries and Mutations
+  const { data: dbPosts = [], refetch: refetchPosts } = trpc.posts.list.useQuery();
+  const { data: brands = [] } = trpc.brands.list.useQuery();
+  const { data: products = [] } = trpc.devices.list.useQuery();
+  const createPostMutation = trpc.posts.create.useMutation();
+  const { data: followCounts } = trpc.follows.myFollowCounts.useQuery();
+  const { data: myFollowers = [] } = trpc.follows.myFollowers.useQuery();
+  const { data: myFollowing = [] } = trpc.follows.myFollowing.useQuery();
+
+  // Create post states
+  const [showPostDialog, setShowPostDialog] = useState(false);
+  const [postCaption, setPostCaption] = useState("");
+  const [postImageUrl, setPostImageUrl] = useState("");
+  const [postImagePreview, setPostImagePreview] = useState<string>("");
+  const postImageInputRef = useRef<HTMLInputElement>(null);
+  const [postCategory, setPostCategory] = useState("Casual");
+  const [selectedBrandId, setSelectedBrandId] = useState<number | "">("");
+  const [selectedProductId, setSelectedProductId] = useState<number | "">("");
+  const [isPosting, setIsPosting] = useState(false);
+  const [tagX, setTagX] = useState<number | null>(null);
+  const [tagY, setTagY] = useState<number | null>(null);
+
+  const handlePostOutfit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!postCaption || !selectedBrandId || !selectedProductId) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    const prod = products.find((p: any) => p.id === Number(selectedProductId));
+    if (!prod) {
+      toast.error("Tagged product not found");
+      return;
+    }
+
+    const brand = brands.find((b: any) => b.id === Number(selectedBrandId));
+    const tagText = brand ? ` @${brand.name.replace(/\s+/g, "")}` : "";
+
+    setIsPosting(true);
+    try {
+      await createPostMutation.mutateAsync({
+        imageUrl: postImageUrl,
+        caption: postCaption + tagText,
+        category: postCategory,
+        taggedProduct: {
+          id: prod.id,
+          name: prod.name,
+          price: Number(prod.price),
+          image: prod.imageUrl || "/product_dress_1.png",
+          brandId: prod.brandId
+        },
+        hotspots: tagX !== null && tagY !== null
+          ? [{ x: tagX, y: tagY, brandId: Number(selectedBrandId), productId: Number(selectedProductId) }]
+          : undefined
+      });
+      toast.success("Outfit posted successfully! 👕");
+      setShowPostDialog(false);
+      setPostCaption("");
+      setSelectedBrandId("");
+      setSelectedProductId("");
+      setTagX(null);
+      setTagY(null);
+      await refetchPosts();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to post outfit");
+    } finally {
+      setIsPosting(false);
+    }
+  };
+
+  // Load brand registration status & mannequin double
+  useEffect(() => {
+    if (!loading && user) {
+      const isReg = localStorage.getItem(`brand_registered_${user.id}`) === "true";
+      setBrandRegistered(isReg);
+    }
+    const has = localStorage.getItem("has_mannequin") === "true";
+    if (has) {
+      setMannequin({
+        gender: (localStorage.getItem("mannequin_gender") as "man" | "woman") || "woman",
+        height: localStorage.getItem("mannequin_height") || "172",
+        weight: localStorage.getItem("mannequin_weight") || "62",
+        nickname: localStorage.getItem("mannequin_nickname") || "My Mannequin",
+        hasModel: true
+      });
+    }
+  }, [user, loading]);
+
+  const handleOpenStoreSetup = () => {
+    setShowBrandPromo(true);
+  };
+
+  const handleCreateBrandAccountClick = () => {
+    setShowBrandPromo(false);
+    setShowBrandForm(true);
+  };
+
+  const handleOwnerIdFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setOwnerIdFileName(file.name);
+      setForm({ ...form, ownerIdFile: file.name });
+      toast.success(`Uploaded: ${file.name}`);
+    }
+  };
+
+  const handleRegisterBrand = () => {
+    if (!user) return;
+    if (!form.fullName || !form.email || !form.phone || !form.brandName || !form.password) {
+      toast.error("Please fill in all fields including Brand Name and Password");
+      return;
+    }
+    // Set brand storage flags scoped to user.id
+    localStorage.setItem(`brand_registered_${user.id}`, "true");
+    localStorage.setItem(`brand_owner_name_${user.id}`, form.fullName);
+    localStorage.setItem(`brand_name_${user.id}`, form.brandName);
+    localStorage.setItem(`brand_email_${user.id}`, form.email);
+    localStorage.setItem(`brand_password_${user.id}`, form.password);
+    // Auto-login the brand dashboard on first creation — no extra login step needed
+    localStorage.setItem(`brand_logged_in_${user.id}`, "true");
+    
+    setBrandRegistered(true);
+    setShowBrandForm(false);
+    toast.success("Congrats! Your brand account is verified and ready! 🎉");
+  };
+
+  const handleSwitchToBrandDashboard = () => {
+    if (!user) return;
+    // Save current active session state as brand mode scoped to user.id
+    localStorage.setItem(`active_profile_mode_${user.id}`, "brand");
+    setLocation("/brand");
+  };
+
+  return (
+    <AppShell activePath="/profile" showRightPanel={false}>
+      <div className="pb-20 lg:pb-6 max-w-md lg:max-w-6xl mx-auto space-y-5 lg:space-y-0 pt-4 lg:grid lg:grid-cols-12 lg:gap-6">
+        
+        {/* Left column (Desktop only) */}
+        <div className="hidden lg:flex lg:col-span-3 flex-col gap-5 animate-fade-up">
+          <div className="bg-white dark:bg-[#1A1A1A] border border-border/30 rounded-3xl p-5 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-sm flex items-center gap-1.5 text-primary">
+                <Shirt className="h-4 w-4" /> Body Double
+              </h3>
+              <span className="text-[10px] bg-primary/10 text-primary rounded-full px-2 py-0.5 font-bold">Live Model</span>
+            </div>
+
+            {/* Mannequin Image Box */}
+            <div className="relative h-64 bg-gradient-to-b from-muted/30 to-muted/10 rounded-2xl flex items-center justify-center overflow-hidden border border-border/20 group">
+              <img
+                src={mannequin.gender === "woman" ? "/mannequin_female.png" : "/mannequin_male.png"}
+                alt="Body Model"
+                className="h-full w-auto object-cover object-top transition-transform duration-300 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+              <p className="absolute bottom-2.5 left-0 right-0 text-center text-[10px] font-black text-white drop-shadow tracking-wider uppercase">
+                {mannequin.nickname}
+              </p>
+            </div>
+
+            {/* Mannequin stats */}
+            <div className="grid grid-cols-2 gap-2 text-xs font-semibold">
+              <div className="p-2.5 rounded-xl bg-muted/40 border border-border/10 flex flex-col justify-center">
+                <span className="text-[9px] text-muted-foreground uppercase">Height</span>
+                <span className="text-foreground font-black mt-0.5">{mannequin.height} cm</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-muted/40 border border-border/10 flex flex-col justify-center">
+                <span className="text-[9px] text-muted-foreground uppercase">Weight</span>
+                <span className="text-foreground font-black mt-0.5">{mannequin.weight} kg</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setLocation("/mannequin")}
+              className="w-full h-10 rounded-full border border-border/50 text-xs font-bold hover:bg-accent transit-all flex items-center justify-center gap-1.5"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-primary" /> Adjust Measurements
+            </button>
+          </div>
+
+          {/* Body Shape Calculator */}
+          <BodyShapeCalculator />
+
+          {/* Quick Style Goal Widget */}
+          <div className="bg-white dark:bg-[#1A1A1A] border border-border/30 rounded-3xl p-5 shadow-sm space-y-3">
+            <h4 className="text-xs font-extrabold text-foreground/80">Active style goal</h4>
+            <div className="p-3 rounded-2xl bg-gradient-to-r from-primary/10 to-orange-400/10 border border-primary/20 space-y-1">
+              <p className="text-[10px] font-bold text-primary flex items-center gap-1">🎯 Streetwear Upgrade</p>
+              <p className="text-[9px] text-muted-foreground leading-relaxed">
+                Add 3 oversized sweaters and cargo bottoms matching your {mannequin.height}cm drape profile.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Middle main column */}
+        <div className="col-span-12 lg:col-span-6 space-y-5">
+        
+        {/* ── 1. Hero Card (Professional Banner & Info) ── */}
+        <div className="bg-white dark:bg-[#1A1A1A] rounded-3xl border border-border/30 overflow-hidden shadow-sm">
+          {/* Cover gradient */}
+          <div className="h-24 bg-gradient-to-r from-primary/20 via-orange-400/20 to-primary/10 relative animate-fade-up" />
+          
+          <div className="px-5 pb-5 -mt-10 flex flex-col items-center text-center relative z-10 animate-fade-up">
+            {/* Avatar */}
+            <div className="h-20 w-20 rounded-full overflow-hidden border-4 border-white dark:border-[#1A1A1A] shadow-md bg-white">
+              <img src="/logo.png" alt="Profile" className="w-full h-full object-cover" />
+            </div>
+            
+            <h2 className="text-base font-extrabold mt-2 text-foreground">Aria F.</h2>
+            <p className="text-[10px] text-muted-foreground font-semibold">@AriaF</p>
+            
+            <p className="text-xs text-muted-foreground mt-2 max-w-xs leading-relaxed px-2">
+              Fashion curator & AI stylist enthusiast. Exploring the future of personal style.
+            </p>
+
+            {/* Stats */}
+            <div className="flex items-center justify-center gap-6 mt-4 py-2 px-6 rounded-2xl bg-muted/40 border border-border/10 w-full max-w-xs">
+              <div className="text-center">
+                <p className="text-xs font-black text-foreground">{(dbPosts as any[]).filter((p: any) => p.userId === user?.id).length || 0}</p>
+                <p className="text-[9px] text-muted-foreground">Outfits</p>
+              </div>
+              <div className="h-6 w-px bg-border/40" />
+              <button
+                className="text-center hover:opacity-80 transition-opacity cursor-pointer"
+                onClick={() => setActiveTab("followers")}
+              >
+                <p className="text-xs font-black text-foreground">{followCounts?.followers ?? 0}</p>
+                <p className="text-[9px] text-muted-foreground">Followers</p>
+              </button>
+              <div className="h-6 w-px bg-border/40" />
+              <button
+                className="text-center hover:opacity-80 transition-opacity cursor-pointer"
+                onClick={() => setActiveTab("followers")}
+              >
+                <p className="text-xs font-black text-foreground">{followCounts?.following ?? 0}</p>
+                <p className="text-[9px] text-muted-foreground">Following</p>
+              </button>
+            </div>
+
+            {/* Switch / Store Button */}
+            <div className="mt-4 w-full px-2">
+              {brandRegistered ? (
+                <button
+                  onClick={handleSwitchToBrandDashboard}
+                  className="w-full h-10 rounded-full bg-primary/10 border border-primary/25 text-primary text-xs font-bold hover:bg-primary hover:text-white transit-all flex items-center justify-center gap-1.5"
+                >
+                  <Building2 className="h-3.5 w-3.5" />
+                  Switch to Brand Dashboard
+                </button>
+              ) : (
+                <button
+                  onClick={handleOpenStoreSetup}
+                  className="w-full h-10 rounded-full bg-foreground text-background text-xs font-bold hover:opacity-90 transit-all flex items-center justify-center gap-1.5"
+                >
+                  <Building className="h-3.5 w-3.5" />
+                  Open brand store
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── 2. Search & Utility Bar ── */}
+        <div className="px-1 animate-fade-up">
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search your profile..."
+              className="w-full h-11 pl-10 pr-4 rounded-full bg-white dark:bg-[#1A1A1A] border border-border/40 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 shadow-sm"
+            />
+          </div>
+        </div>
+
+        {/* ── 3. Navigation Bar (Tabs) ── */}
+        <div className="px-1 animate-fade-up">
+          <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-border/30 p-1 flex items-center justify-around gap-0.5 shadow-sm">
+            {(["outfits", "orders", "followers", "profits", "settings"] as ProfileTab[]).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`flex-1 py-2 text-xs font-bold capitalize rounded-xl transition-all ${
+                  activeTab === tab
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/30"
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── 4. Tab Content Views ── */}
+        <main className="px-1 py-2">
+          
+          {/* ── OUTFITS TAB (1.jpeg to 4.jpeg) ── */}
+          {activeTab === "outfits" && (
+            <div className="space-y-6">
+
+            {/* Outfits Sub Tabs */}
+            <div className="flex gap-2 justify-around border-b border-border/20 pb-2">
+              <button
+                onClick={() => setActiveSubTab("created")}
+                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1 border transition-all ${
+                  activeSubTab === "created"
+                    ? "bg-foreground text-background border-foreground shadow"
+                    : "bg-muted border-border/40 hover:bg-accent"
+                }`}
+              >
+                👕 Created by you
+              </button>
+              <button
+                onClick={() => setActiveSubTab("wardrobe")}
+                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1 border transition-all ${
+                  activeSubTab === "wardrobe"
+                    ? "bg-foreground text-background border-foreground shadow"
+                    : "bg-muted border-border/40 hover:bg-accent"
+                }`}
+              >
+                👗 Wardrobe
+              </button>
+              <button
+                onClick={() => setActiveSubTab("loved")}
+                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1 border transition-all ${
+                  activeSubTab === "loved"
+                    ? "bg-foreground text-background border-foreground shadow"
+                    : "bg-muted border-border/40 hover:bg-accent"
+                }`}
+              >
+                ❤️ Loved
+              </button>
+              <button
+                onClick={() => setActiveSubTab("stylista")}
+                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1 border transition-all ${
+                  activeSubTab === "stylista"
+                    ? "bg-foreground text-background border-foreground shadow"
+                    : "bg-muted border-border/40 hover:bg-accent"
+                }`}
+              >
+                🪄 Stylista
+              </button>
+            </div>
+
+            {/* Created Outfits Sub-tab */}
+            {activeSubTab === "created" && (() => {
+              const userPosts = dbPosts.filter((p: any) => p.userId === user?.id);
+              return (
+                <div className="space-y-5">
+                  <div className="flex justify-between items-center px-1">
+                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Your Created Looks</h3>
+                    <button
+                      onClick={() => setShowPostDialog(true)}
+                      className="px-4 h-9 rounded-full bg-primary text-white text-xs font-bold shadow-sm flex items-center gap-1.5 hover:opacity-95"
+                    >
+                      <Plus className="h-4.5 w-4.5" /> Post Look
+                    </button>
+                  </div>
+
+                  {userPosts.length === 0 ? (
+                    <div className="text-center py-16 space-y-6 bg-white dark:bg-[#1A1A1A] rounded-2xl border border-border/30 shadow-sm">
+                      <div className="text-7xl">🧥💰</div>
+                      <div className="space-y-2">
+                        <h3 className="text-base font-bold text-foreground">No outfits posted yet</h3>
+                        <p className="text-xs text-muted-foreground max-w-xs mx-auto leading-relaxed">
+                          Share your daily outfits, tag registered brands, and earn commissions on every order driven by your post!
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setShowPostDialog(true)}
+                        className="px-6 h-11 rounded-full bg-primary text-white text-xs font-bold shadow-sm"
+                      >
+                        Post your first outfit
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4">
+                      {userPosts.map((post: any) => (
+                        <div key={post.id} className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-border/30 overflow-hidden shadow-sm flex flex-col justify-between group hover:border-primary/20 transition-all duration-300">
+                          <div className="aspect-[4/5] bg-muted overflow-hidden relative">
+                            <img 
+                              src={post.image || "/product_dress_1.png"} 
+                              alt="Outfit" 
+                              className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500" 
+                            />
+                            {/* Tag approval badge */}
+                            <div className="absolute top-2.5 right-2.5">
+                              {post.approvalStatus === "green" ? (
+                                <span className="text-[8px] font-bold px-2 py-1 rounded-full bg-emerald-500 text-white shadow">
+                                  Approved & Live
+                                </span>
+                              ) : post.approvalStatus === "red" ? (
+                                <span className="text-[8px] font-bold px-2 py-1 rounded-full bg-red-500 text-white shadow">
+                                  Declined
+                                </span>
+                              ) : (
+                                <span className="text-[8px] font-bold px-2 py-1 rounded-full bg-amber-500 text-white shadow">
+                                  Pending Approval
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="p-3 space-y-2">
+                            <p className="text-[11px] font-medium leading-relaxed line-clamp-2 text-foreground/80">
+                              {post.caption}
+                            </p>
+                            {post.taggedProduct && (
+                              <div className="p-1.5 rounded-lg bg-muted/60 border border-border/20 flex items-center gap-2">
+                                <div className="h-7 w-7 rounded bg-muted overflow-hidden shrink-0">
+                                  <img src={post.taggedProduct.image} className="w-full h-full object-cover" alt="" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-[8px] font-bold truncate leading-tight text-foreground/90">{post.taggedProduct.name}</p>
+                                  <p className="text-[9px] font-black text-primary leading-tight">${post.taggedProduct.price}</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Wardrobe Tab */}
+            {activeSubTab === "wardrobe" && (() => {
+              const savedBag = localStorage.getItem("styly_shopping_bag");
+              const bagItems = savedBag ? JSON.parse(savedBag) : [];
+              if (bagItems.length === 0) {
+                return (
+                  <div className="text-center py-16 space-y-5 animate-fade-up">
+                    <div className="text-6xl">🐱👗</div>
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-bold">Your dressing room is empty</h3>
+                      <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                        Hang outfits while you shop, so they'll be ready here for virtual try-on.
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <div className="space-y-4 animate-fade-up">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-muted-foreground">{bagItems.length} items hung in wardrobe</p>
+                    <button
+                      onClick={() => setLocation("/checkout")}
+                      className="text-xs font-bold text-primary flex items-center gap-1 hover:underline"
+                    >
+                      Go to checkout <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {bagItems.map((item: any) => (
+                      <div key={`${item.id}-${item.size}`} className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-border/30 overflow-hidden flex flex-col p-3 gap-2">
+                        <div className="aspect-[3/4] rounded-xl overflow-hidden bg-muted">
+                          <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-xs truncate leading-tight">{item.name}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">Size: {item.size} · Qty: {item.qty}</p>
+                          <p className="text-primary font-black text-xs mt-1">${(item.price * item.qty).toLocaleString()}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Loved Tab */}
+            {activeSubTab === "loved" && (() => {
+              const likedStr = localStorage.getItem("styly_liked_posts");
+              const likedIds = likedStr ? JSON.parse(likedStr) : [];
+              const lovedPosts = (dbPosts || []).map((p: any) => ({
+                id: p.id,
+                image: p.image || p.imageUrl || "/product_dress_1.png",
+                caption: p.caption || "",
+                creator: p.creator || {
+                  name: "Styly User",
+                  username: "@user",
+                  avatar: "/logo.png",
+                }
+              })).filter((p: any) => likedIds.includes(p.id));
+
+              if (lovedPosts.length === 0) {
+                return (
+                  <div className="text-center py-16 space-y-5 animate-fade-up">
+                    <div className="text-6xl">💖🧦</div>
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-bold">You didn't like any outfit yet!</h3>
+                      <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                        Like outfits in the feed, and they'll be saved here for inspiration.
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <div className="space-y-4 animate-fade-up">
+                  <p className="text-xs font-bold text-muted-foreground">{lovedPosts.length} loved outfits</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {lovedPosts.map((post: any) => (
+                      <div
+                        key={post.id}
+                        onClick={() => setLocation("/feed")}
+                        className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-border/30 overflow-hidden cursor-pointer flex flex-col p-2.5 gap-2"
+                      >
+                        <div className="aspect-[4/5] rounded-xl overflow-hidden bg-muted">
+                          <img src={post.image} alt={post.caption} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-[11px] truncate leading-none">{post.creator.name}</p>
+                          <p className="text-[9px] text-muted-foreground mt-0.5">{post.creator.username}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Stylista AI tab */}
+            {activeSubTab === "stylista" && (
+              <StylistaAITab onTryOn={() => setLocation("/mannequin")} />
+            )}
+
+          </div>
+        )}
+
+        {/* ── ORDERS TAB ── */}
+        {activeTab === "orders" && <OrdersTrackingPanel />}
+
+
+        {/* ── FOLLOWERS TAB ── */}
+        {activeTab === "followers" && (() => {
+          const [followSubTab, setFollowSubTab] = useState<"followers" | "following">("followers");
+          const displayList = followSubTab === "followers" ? myFollowers : myFollowing;
+
+          return (
+            <div className="space-y-4 animate-fade-up">
+              {/* Sub-tabs */}
+              <div className="flex rounded-xl bg-muted/40 p-1 gap-1">
+                {(["followers", "following"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setFollowSubTab(tab)}
+                    className={`flex-1 h-8 rounded-lg text-xs font-bold capitalize transition-all ${
+                      followSubTab === tab
+                        ? "bg-white dark:bg-[#2A2A2A] text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {tab} ({tab === "followers" ? (followCounts?.followers ?? 0) : (followCounts?.following ?? 0)})
+                  </button>
+                ))}
+              </div>
+
+              {displayList.length === 0 ? (
+                <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-border/40 p-8 text-center space-y-3 shadow-sm">
+                  <Users className="h-12 w-12 text-muted-foreground/45 mx-auto" />
+                  <h3 className="text-sm font-bold">
+                    {followSubTab === "followers" ? "No followers yet" : "Not following anyone"}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {followSubTab === "followers"
+                      ? "Post daily styles to grow your fashion circle!"
+                      : "Follow brands and creators to see their latest looks."}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {displayList.map((f: any) => (
+                    <div key={f.id} className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-border/30 p-3 flex items-center gap-3 shadow-sm">
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        {f.targetType === "brand" ? (
+                          <Building2 className="h-5 w-5 text-primary" />
+                        ) : (
+                          <User className="h-5 w-5 text-primary" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold truncate">{f.targetName || (f.targetType === "brand" ? "Brand" : "User")}</p>
+                        <p className="text-[10px] text-muted-foreground capitalize">{f.targetType}</p>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">
+                        {f.createdAt ? new Date(f.createdAt).toLocaleDateString() : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* ── PROFITS TAB ── */}
+        {activeTab === "profits" && (
+          <div className="space-y-5 animate-fade-up">
+            {/* Grade card */}
+            <GradePanel />
+
+            {/* Profits Wallet & Withdrawal History */}
+            <ProfitsAndWithdrawalsPanel />
+          </div>
+        )}
+
+        {/* ── SETTINGS TAB (7.jpeg) ── */}
+        {activeTab === "settings" && (
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-[#1A1A1A] border border-border/40 rounded-2xl overflow-hidden shadow-sm divide-y divide-border/20">
+              
+              {[
+                { label: t("editProfile"),       icon: User,          action: () => setShowEditProfile(true) },
+                { label: t("languageLabel"),     icon: Globe,         action: () => setShowLanguageModal(true) },
+                { label: t("yourGrade"),         icon: Star,          action: () => setShowGrade(true) },
+                { label: t("help"),              icon: AlertCircle,   action: () => setShowHelp(true) },
+                { label: t("generalCondition"),  icon: FileText,       action: () => setShowTerms(true) },
+                { label: t("privacyPolicy"),     icon: CheckCircle,   action: () => setShowPrivacy(true) },
+              ].map(({ label, icon: Icon, action }) => (
+                <button
+                  key={label}
+                  onClick={action}
+                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-accent/40 text-left transition-colors"
+                >
+                  <span className="flex items-center gap-3">
+                    <Icon className="h-4 w-4 text-primary" />
+                    <span className="text-xs font-semibold">{label}</span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </button>
+              ))}
+
+            </div>
+
+            {/* Logout Button */}
+            <button
+              onClick={() => {
+                toast.success("Logged out successfully");
+                setLocation("/auth");
+              }}
+              className="w-full h-12 rounded-full border-2 border-red-500/40 text-red-500 dark:text-red-400 font-bold text-xs hover:bg-red-500/10 transition-all flex items-center justify-center gap-2"
+            >
+              <LogOut className="h-4 w-4" />
+              Logout
+            </button>
+          </div>
+        )}
+
+      </main>
+
+      {/* ── Brand Promo Panel Screen (5.jpeg) ── */}
+      {showBrandPromo && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowBrandPromo(false)} />
+          <div className="relative w-full sm:max-w-md bg-white dark:bg-[#1A1A1A] rounded-t-3xl sm:rounded-2xl shadow-2xl border border-border/60 p-6 space-y-6 animate-in slide-in-from-bottom-4 duration-300">
+            <div className="flex justify-between items-center border-b border-border/20 pb-3">
+              <h2 className="text-base font-bold">Open store</h2>
+              <button onClick={() => setShowBrandPromo(false)} className="h-7 w-7 rounded-full hover:bg-accent flex items-center justify-center">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="text-center space-y-4">
+              <div className="h-40 rounded-xl bg-muted/20 border border-border/40 flex items-center justify-center">
+                <Building2 className="h-20 w-20 text-primary/80" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-black leading-tight">Get your brand its own online store</h3>
+                <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                  Once your information is verified, you'll be ready to sell your products.
+                </p>
+              </div>
+            </div>
+
+            {brandRegistered ? (
+              <button
+                onClick={handleSwitchToBrandDashboard}
+                className="w-full h-12 rounded-full bg-primary text-white font-bold text-xs hover:bg-primary/95 transition-all shadow-sm"
+              >
+                Go to Brand Dashboard
+              </button>
+            ) : (
+              <button
+                onClick={handleCreateBrandAccountClick}
+                className="w-full h-12 rounded-full bg-foreground text-background font-bold text-xs hover:opacity-90 transition-all shadow"
+              >
+                Create a brand account
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Brand Account Owner Form Screen (6.jpeg) ── */}
+      {showBrandForm && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowBrandForm(false)} />
+          <div className="relative w-full sm:max-w-md bg-white dark:bg-[#1A1A1A] rounded-t-3xl sm:rounded-2xl shadow-2xl border border-border/60 p-6 space-y-6 max-h-[85vh] flex flex-col animate-in slide-in-from-bottom-4 duration-300">
+            
+            {/* Header */}
+            <div className="flex justify-between items-center border-b border-border/20 pb-3 shrink-0">
+              <h2 className="text-base font-bold">Brand account</h2>
+              <button onClick={() => setShowBrandForm(false)} className="h-7 w-7 rounded-full hover:bg-accent flex items-center justify-center">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Inputs Body */}
+            <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Owner information</p>
+              
+              <div>
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  value={form.fullName}
+                  onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                  className="w-full h-11 px-4 rounded-xl bg-muted border border-border/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+
+              <div>
+                <input
+                  type="text"
+                  placeholder="Role"
+                  value={form.role}
+                  onChange={(e) => setForm({ ...form, role: e.target.value })}
+                  className="w-full h-11 px-4 rounded-xl bg-muted border border-border/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+
+              <div>
+                <input
+                  type="email"
+                  placeholder="Email Address"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  className="w-full h-11 px-4 rounded-xl bg-muted border border-border/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+
+              <div>
+                <input
+                  type="tel"
+                  placeholder="Phone number"
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  className="w-full h-11 px-4 rounded-xl bg-muted border border-border/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-3 mb-1">Brand credentials</p>
+
+              <div>
+                <input
+                  type="text"
+                  placeholder="Brand Name"
+                  value={form.brandName}
+                  onChange={(e) => setForm({ ...form, brandName: e.target.value })}
+                  className="w-full h-11 px-4 rounded-xl bg-muted border border-border/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+
+              <div>
+                <input
+                  type="password"
+                  placeholder="Brand Dashboard Password"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  className="w-full h-11 px-4 rounded-xl bg-muted border border-border/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+
+              {/* Owner ID file upload trigger */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder={ownerIdFileName || "Owner ID Card Upload"}
+                  readOnly
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full h-11 pl-4 pr-12 rounded-xl bg-muted border border-border/50 text-xs cursor-pointer focus:outline-none"
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg hover:bg-accent flex items-center justify-center shrink-0"
+                >
+                  <Upload className="h-4 w-4 text-muted-foreground" />
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  onChange={handleOwnerIdFileChange}
+                  className="hidden"
+                />
+              </div>
+            </div>
+
+            {/* Submit */}
+            <div className="shrink-0 pt-2">
+              <button
+                onClick={handleRegisterBrand}
+                className="w-full h-12 rounded-full bg-primary text-white font-bold text-xs hover:bg-primary/95 transition-all shadow-md shadow-primary/20"
+              >
+                Next
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ── Post Outfit Dialog ── */}
+      <Dialog open={showPostDialog} onOpenChange={(open) => { setShowPostDialog(open); if (!open) { setPostImagePreview(""); setPostImageUrl(""); } }}>
+        <DialogContent className="max-w-md bg-white dark:bg-[#1A1A1A] border border-border/40 rounded-2xl shadow-xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black flex items-center gap-2 text-foreground">
+              <Sparkles className="h-5 w-5 text-primary" /> Create Outfit Post
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handlePostOutfit} className="space-y-4 pt-2">
+            
+            {/* Caption */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Caption</label>
+              <textarea
+                value={postCaption}
+                onChange={(e) => setPostCaption(e.target.value)}
+                placeholder="Write a caption (e.g. In love with my new look!)"
+                className="w-full h-20 p-3 rounded-xl bg-muted border border-border/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none text-foreground"
+                required
+              />
+            </div>
+
+            {/* Local Photo Upload */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Photo</label>
+
+              {/* Hidden file input */}
+              <input
+                ref={postImageInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = (ev) => {
+                    const dataUrl = ev.target?.result as string;
+                    setPostImagePreview(dataUrl);
+                    
+                    const formData = new FormData();
+                    formData.append("image", file);
+                    fetch("/api/upload", { method: "POST", body: formData })
+                      .then((r) => r.json())
+                      .then((d) => {
+                        if (d.url) {
+                          setPostImageUrl(d.url);
+                        } else {
+                          setPostImageUrl(dataUrl);
+                        }
+                      })
+                      .catch(() => {
+                        setPostImageUrl(dataUrl);
+                      });
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
+
+              {postImagePreview ? (
+                <div
+                  className="relative w-full h-56 rounded-2xl overflow-hidden border border-border/40 bg-muted cursor-crosshair animate-in fade-in duration-300"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+                    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+                    setTagX(x);
+                    setTagY(y);
+                  }}
+                >
+                  <img src={postImagePreview} alt="Preview" className="w-full h-full object-cover select-none pointer-events-none" />
+                  
+                  {tagX !== null && tagY !== null && (
+                    <div
+                      className="absolute w-5 h-5 -ml-2.5 -mt-2.5 rounded-full bg-primary/95 border-2 border-white flex items-center justify-center animate-pulse shadow-md"
+                      style={{ left: `${tagX}%`, top: `${tagY}%` }}
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full bg-white" />
+                    </div>
+                  )}
+                  
+                  {/* Change Photo Overlay Button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      postImageInputRef.current?.click();
+                    }}
+                    className="absolute top-3 right-3 h-8 px-3 rounded-xl bg-black/60 backdrop-blur-md border border-white/20 text-white text-[10px] font-bold flex items-center gap-1 hover:bg-black/80 transition-all"
+                  >
+                    <Camera className="h-3.5 w-3.5" /> Change Photo
+                  </button>
+                  
+                  <div className="absolute bottom-2 left-0 right-0 text-center pointer-events-none">
+                    <span className="text-[9px] font-black uppercase tracking-wider bg-black/60 text-white/90 px-3 py-1 rounded-full backdrop-blur-md shadow-sm">
+                      {tagX !== null ? `✓ Tag positioned at ${tagX}%` : "⚡ Tap image to place tag marker"}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                /* Upload drop zone */
+                <button
+                  type="button"
+                  onClick={() => postImageInputRef.current?.click()}
+                  className="w-full h-36 rounded-2xl border-2 border-dashed border-primary/30 hover:border-primary/60 bg-primary/3 hover:bg-primary/6 transition-all flex flex-col items-center justify-center gap-2 group"
+                >
+                  <div className="h-10 w-10 rounded-full bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-all">
+                    <Upload className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs font-bold text-primary">Upload from device</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">JPEG, PNG, WEBP · Max 10 MB</p>
+                  </div>
+                </button>
+              )}
+            </div>
+
+            {/* Category */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Style Category</label>
+              <select
+                value={postCategory}
+                onChange={(e) => setPostCategory(e.target.value)}
+                className="w-full h-11 px-3 rounded-xl bg-muted border border-border/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+              >
+                {["Casual", "Formal", "Streetwear", "Bohemian", "Activewear"].map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Tag Brand */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Tag Brand</label>
+              <select
+                value={selectedBrandId}
+                onChange={(e) => {
+                  const brandId = e.target.value ? Number(e.target.value) : "";
+                  setSelectedBrandId(brandId);
+                  setSelectedProductId("");
+                }}
+                className="w-full h-11 px-3 rounded-xl bg-muted border border-border/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                required
+              >
+                <option value="">Select a Brand</option>
+                {brands.map((b: any) => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Tag Product */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Tag Product</label>
+              <select
+                value={selectedProductId}
+                onChange={(e) => setSelectedProductId(e.target.value ? Number(e.target.value) : "")}
+                className="w-full h-11 px-3 rounded-xl bg-muted border border-border/50 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                required
+                disabled={!selectedBrandId}
+              >
+                <option value="">Select a Product</option>
+                {products
+                  .filter((p: any) => !selectedBrandId || p.brandId === Number(selectedBrandId))
+                  .map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.name} (${p.price})</option>
+                  ))}
+              </select>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-3 border-t border-border/20">
+              <button
+                type="button"
+                onClick={() => setShowPostDialog(false)}
+                className="flex-1 h-11 rounded-full border border-border/50 text-xs font-semibold hover:bg-accent text-foreground transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isPosting}
+                className="flex-1 h-11 rounded-full bg-gradient-to-r from-primary to-orange-500 text-white text-xs font-bold hover:opacity-95 hover:scale-[1.01] transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-primary/20"
+              >
+                {isPosting ? "Posting..." : "Post Look"}
+              </button>
+            </div>
+
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      </div>
+
+      {/* ── Desktop Right Panel: Closet Analytics & Brands ── */}
+      <div className="hidden lg:flex lg:col-span-3 flex-col gap-5 animate-fade-up">
+        {/* Closet Analytics */}
+        <div className="bg-white dark:bg-[#1A1A1A] border border-border/30 rounded-3xl p-5 shadow-sm space-y-4">
+          <h3 className="font-extrabold text-sm text-foreground flex items-center gap-1.5">
+            <TrendingUp className="h-4 w-4 text-primary" /> Closet Analytics
+          </h3>
+
+          <div className="space-y-2.5">
+            <div className="flex justify-between items-center py-1.5 border-b border-border/10">
+              <span className="text-xs text-muted-foreground">Fit Match Rate</span>
+              <span className="text-xs font-black text-emerald-500">97% Confidence</span>
+            </div>
+            <div className="flex justify-between items-center py-1.5 border-b border-border/10">
+              <span className="text-xs text-muted-foreground">Estimated Closet Value</span>
+              <span className="text-xs font-black text-foreground">$1,840</span>
+            </div>
+            <div className="flex justify-between items-center py-1.5 border-b border-border/10">
+              <span className="text-xs text-muted-foreground">Dominant Color</span>
+              <span className="text-xs font-black text-foreground flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-[#111] border border-white" /> Black
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Followed Brands */}
+        <div className="bg-white dark:bg-[#1A1A1A] border border-border/30 rounded-3xl p-5 shadow-sm space-y-4">
+          <h3 className="font-extrabold text-sm text-foreground flex items-center gap-1.5">
+            <Building className="h-4 w-4 text-primary" /> Followed Brands
+          </h3>
+
+          <div className="space-y-2">
+            {[
+              { name: "Queen Rania Collection", category: "Formal / Luxury", avatar: "Q" },
+              { name: "Urban Threads", category: "Casual / Linen", avatar: "U" },
+              { name: "Kenzo Luxury", category: "Streetwear / Outerwear", avatar: "K" },
+            ].map((brand, i) => (
+              <div key={i} className="flex items-center gap-2.5 p-2 rounded-xl bg-muted/40 hover:bg-muted/80 transit-all cursor-pointer">
+                <div className="h-7 w-7 rounded-full bg-gradient-to-tr from-primary to-orange-400 flex items-center justify-center text-[10px] font-black text-white">
+                  {brand.avatar}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-bold truncate">{brand.name}</p>
+                  <p className="text-[9px] text-muted-foreground">{brand.category}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      
+    </div>
+
+    {/* ═══════════════════════════════════════════════════════════════════════
+        SETTINGS MODALS — rendered inside AppShell so they layer correctly
+    ══════════════════════════════════════════════════════════════════════════ */}
+
+  {/* ── Language Selection Modal ── */}
+  {showLanguageModal && (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowLanguageModal(false)} />
+      <div className="relative w-full sm:max-w-md bg-white dark:bg-[#1A1A1A] rounded-t-3xl sm:rounded-2xl shadow-2xl border border-border/60 max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-4 duration-300">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border/30 shrink-0">
+          <h2 className="font-black text-base flex items-center gap-2"><Globe className="h-4 w-4 text-primary" /> {t("languageLabel")}</h2>
+          <button onClick={() => setShowLanguageModal(false)} className="h-8 w-8 rounded-full hover:bg-accent flex items-center justify-center"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="overflow-y-auto p-5 space-y-3">
+          {[
+            { code: "en", name: "English" },
+            { code: "fr", name: "Français" },
+            { code: "ar", name: "العربية" }
+          ].map((lang) => (
+            <button
+              key={lang.code}
+              onClick={() => {
+                setLanguage(lang.code as any);
+                toast.success(`Language updated to ${lang.name}!`);
+                setShowLanguageModal(false);
+              }}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-xs font-bold transition-all ${
+                language === lang.code
+                  ? "bg-primary/10 border-primary text-primary"
+                  : "border-border/40 hover:bg-accent/40"
+              }`}
+            >
+              <span>{lang.name}</span>
+              {language === lang.code && <CheckCircle2 className="h-4 w-4 text-primary" />}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* ── Edit Profile Modal ── */}
+  {showEditProfile && (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowEditProfile(false)} />
+      <div className="relative w-full sm:max-w-md bg-white dark:bg-[#1A1A1A] rounded-t-3xl sm:rounded-2xl shadow-2xl border border-border/60 max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-4 duration-300">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border/30 shrink-0">
+          <h2 className="font-black text-base flex items-center gap-2"><Edit3 className="h-4 w-4 text-primary" /> Edit Profile</h2>
+          <button onClick={() => setShowEditProfile(false)} className="h-8 w-8 rounded-full hover:bg-accent flex items-center justify-center"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="overflow-y-auto p-5 space-y-5">
+          {/* Avatar */}
+          <div className="flex flex-col items-center gap-3">
+            <div className="relative">
+              <div className="h-20 w-20 rounded-full overflow-hidden border-4 border-primary/20 bg-muted">
+                <img src="/logo.png" alt="Avatar" className="w-full h-full object-cover" />
+              </div>
+              <button className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-primary flex items-center justify-center border-2 border-white">
+                <Camera className="h-3.5 w-3.5 text-white" />
+              </button>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Tap to change photo</p>
+          </div>
+
+          {/* Fields */}
+          {[
+            { label: "Full name",  value: editName,     setter: setEditName     },
+            { label: "Username",   value: editUsername, setter: setEditUsername },
+            { label: "Email",      value: editEmail,    setter: setEditEmail    },
+          ].map(({ label, value, setter }) => (
+            <div key={label}>
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1 block">{label}</label>
+              <input
+                value={value}
+                onChange={e => setter(e.target.value)}
+                className="w-full h-11 px-4 rounded-xl bg-muted/50 border border-border/40 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transit-all"
+              />
+            </div>
+          ))}
+          <div>
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1 block">Bio</label>
+            <textarea
+              rows={3}
+              value={editBio}
+              onChange={e => setEditBio(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-muted/50 border border-border/40 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 transit-all resize-none"
+            />
+          </div>
+
+          <button
+            onClick={() => { toast.success("Profile updated! ✅"); setShowEditProfile(false); }}
+            className="w-full h-12 rounded-full bg-gradient-to-r from-primary to-orange-500 text-white font-bold text-sm hover:opacity-95 shadow-lg shadow-primary/20 transit-all"
+          >
+            Save Changes
+          </button>
+
+          {/* Delivery Profile Section */}
+          <div className="p-4 rounded-2xl bg-black/80 dark:bg-black/40 backdrop-blur-md border border-white/10 shadow-lg space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black text-white flex items-center gap-2">
+                🚨 Delivery Profile
+              </h3>
+              {deliveryProfileQuery.data?.isComplete ? (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/30">
+                  ✅ Complete
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  ⚠️ Incomplete
+                </span>
+              )}
+            </div>
+            
+            <div className="space-y-3">
+              {[
+                { label: 'Phone Number', key: 'phone' },
+                { label: 'Address', key: 'deliveryAddress' },
+                { label: 'City', key: 'deliveryCity' },
+                { label: 'Postal Code', key: 'deliveryPostCode' },
+                { label: 'Country', key: 'deliveryCountry' }
+              ].map(field => (
+                <div key={field.key}>
+                  <label className="text-[10px] font-bold text-white/70 uppercase tracking-wide mb-1 block">{field.label}</label>
+                  <input
+                    value={(deliveryForm as any)[field.key]}
+                    onChange={e => setDeliveryForm({ ...deliveryForm, [field.key]: e.target.value })}
+                    className="w-full h-10 px-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/50 transit-all"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => updateDeliveryMutation.mutate(deliveryForm)}
+              disabled={updateDeliveryMutation.isPending}
+              className="w-full h-10 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50"
+            >
+              {updateDeliveryMutation.isPending ? 'Saving...' : 'Save Delivery Profile'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* ── Your Grade Modal ── */}
+  {showGrade && (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowGrade(false)} />
+      <div className="relative w-full sm:max-w-md bg-white dark:bg-[#1A1A1A] rounded-t-3xl sm:rounded-2xl shadow-2xl border border-border/60 max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-4 duration-300">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border/30 shrink-0">
+          <h2 className="font-black text-base flex items-center gap-2"><Award className="h-4 w-4 text-primary" /> Your Grade</h2>
+          <button onClick={() => setShowGrade(false)} className="h-8 w-8 rounded-full hover:bg-accent flex items-center justify-center"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="overflow-y-auto p-5 space-y-5">
+
+            {/* Current Level Card */}
+            <div className="p-5 rounded-2xl text-center space-y-2" style={{ background: `linear-gradient(135deg, ${curLevel.color}22, ${curLevel.color}08)`, border: `1px solid ${curLevel.color}44` }}>
+              <div className="text-5xl">{curLevel.emoji}</div>
+              <p className="text-xl font-black" style={{ color: curLevel.color }}>{curLevel.name}</p>
+              <p className="text-xs text-muted-foreground">{userXP} XP earned</p>
+            </div>
+
+            {/* XP Progress Bar */}
+            {nextLevel && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-[11px] font-semibold">
+                  <span className="text-muted-foreground">{curLevel.name}</span>
+                  <span className="text-primary">{nextLevel.name} at {nextLevel.minXP} XP</span>
+                </div>
+                <div className="h-3 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{ width: `${progress}%`, background: `linear-gradient(to right, ${curLevel.color}, ${nextLevel.color})` }}
+                  />
+                </div>
+                <p className="text-[10px] text-center text-muted-foreground">{progress}% to next level</p>
+              </div>
+            )}
+
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: "Tagged Posts", value: taggedPosts,  icon: Tag },
+                { label: "Total XP",     value: userXP,       icon: Star },
+                { label: "Earned ($)",   value: `$${totalEarned}`, icon: DollarSign },
+              ].map(({ label, value, icon: Icon }) => (
+                <div key={label} className="p-3 rounded-xl bg-muted/40 border border-border/20 text-center space-y-1">
+                  <Icon className="h-4 w-4 text-primary mx-auto" />
+                  <p className="text-sm font-black text-foreground">{value}</p>
+                  <p className="text-[9px] text-muted-foreground leading-tight">{label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Commission Table */}
+            <div className="space-y-2">
+              <p className="text-xs font-extrabold text-foreground/80">Brand Tag Commission Rates</p>
+              <div className="rounded-xl overflow-hidden border border-border/30 divide-y divide-border/20">
+                {LEVELS.map(level => (
+                  <div
+                    key={level.name}
+                    className={`flex items-center justify-between px-4 py-2.5 text-xs ${level.name === curLevel.name ? "bg-primary/8" : ""}`}
+                  >
+                    <span className="flex items-center gap-2 font-semibold">
+                      <span>{level.emoji}</span>
+                      <span style={{ color: level.color }}>{level.name}</span>
+                      {level.name === curLevel.name && <span className="text-[9px] bg-primary text-white px-1.5 py-0.5 rounded-full font-bold">YOU</span>}
+                    </span>
+                    <span className="font-black" style={{ color: level.commission > 0 ? "#10B981" : "#9CA3AF" }}>
+                      {level.commission > 0 ? `${level.commission}% / tag` : "No commission"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* How to earn XP */}
+            <div className="p-4 rounded-2xl bg-muted/30 border border-border/20 space-y-2">
+              <p className="text-xs font-extrabold">How to earn XP & commissions</p>
+              <ul className="space-y-1.5 text-[11px] text-muted-foreground">
+                <li className="flex items-start gap-2"><span className="text-primary font-bold shrink-0">+10 XP</span> Brand tag approved by brand</li>
+                <li className="flex items-start gap-2"><span className="text-primary font-bold shrink-0">+5 XP</span> Post gets 50+ likes</li>
+                <li className="flex items-start gap-2"><span className="text-primary font-bold shrink-0">+2 XP</span> New follower</li>
+                <li className="flex items-start gap-2"><span className="text-emerald-500 font-bold shrink-0">💵 Cash</span> Each approved tagged product sale earns your commission %</li>
+              </ul>
+            </div>
+
+            <button
+              onClick={() => {
+                const newXP = userXP + 25;
+                setUserXP(newXP);
+                localStorage.setItem("styly_xp", String(newXP));
+                toast.success("+25 XP added! Keep posting! 🔥");
+              }}
+              className="w-full h-12 rounded-full bg-gradient-to-r from-primary to-orange-500 text-white font-bold text-sm hover:opacity-95 shadow-lg shadow-primary/20 transit-all flex items-center justify-center gap-2"
+            >
+              <Sparkles className="h-4 w-4" /> Simulate +25 XP (Demo)
+            </button>
+          <GradePanel />
+          <ProfitsAndWithdrawalsPanel />
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* ── Help Modal ── */}
+  {showHelp && (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowHelp(false)} />
+      <div className="relative w-full sm:max-w-md bg-white dark:bg-[#1A1A1A] rounded-t-3xl sm:rounded-2xl shadow-2xl border border-border/60 max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-4 duration-300">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border/30 shrink-0">
+          <h2 className="font-black text-base flex items-center gap-2"><HelpCircle className="h-4 w-4 text-primary" /> Help & Support</h2>
+          <button onClick={() => setShowHelp(false)} className="h-8 w-8 rounded-full hover:bg-accent flex items-center justify-center"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="overflow-y-auto p-5 space-y-4">
+          {[
+            { q: "How does brand tagging work?", a: "When you post an outfit, you can tag the brand of the item. The brand receives a notification to approve or decline your tag. If approved, you earn XP and commission on any sales generated." },
+            { q: "How do I level up my grade?", a: "Each approved brand tag earns you +10 XP. Getting 50+ likes on a post adds +5 XP. Every new follower adds +2 XP. Reach higher levels to unlock better commission rates." },
+            { q: "When do I receive commissions?", a: "Commissions are paid monthly via your registered payment method. You must be at Starter level or above to receive commissions. Minimum payout is 20 TND." },
+            { q: "How does the virtual try-on work?", a: "Configure your mannequin with your body measurements in the Mannequin page. Then when you view a product, tap 'Try On' to see how it looks on your mannequin body double." },
+            { q: "Can I delete a post?", a: "Yes. Go to the Outfits tab > Created by you, and swipe or tap the delete icon on any post you own." },
+            { q: "How do I open a brand store?", a: "In the Profile tab, tap 'Open brand store'. Fill in your brand details and submit your owner ID for verification. Once approved (24–72h), your brand dashboard becomes active." },
+          ].map(({ q, a }, i) => (
+            <div key={i} className="p-4 rounded-2xl border border-border/30 bg-muted/20 space-y-2">
+              <p className="text-xs font-bold text-foreground">{q}</p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">{a}</p>
+            </div>
+          ))}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-primary/10 to-orange-400/10 border border-primary/20 text-center space-y-2">
+            <p className="text-xs font-bold">Still need help?</p>
+            <p className="text-[11px] text-muted-foreground">Contact us at <span className="text-primary font-semibold">support@styly.app</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* ── General Conditions Modal ── */}
+  {showTerms && (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowTerms(false)} />
+      <div className="relative w-full sm:max-w-md bg-white dark:bg-[#1A1A1A] rounded-t-3xl sm:rounded-2xl shadow-2xl border border-border/60 max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-4 duration-300">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border/30 shrink-0">
+          <h2 className="font-black text-base flex items-center gap-2"><FileText className="h-4 w-4 text-primary" /> General Conditions</h2>
+          <button onClick={() => setShowTerms(false)} className="h-8 w-8 rounded-full hover:bg-accent flex items-center justify-center"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="overflow-y-auto p-5 space-y-4 text-xs text-muted-foreground leading-relaxed">
+          <p className="text-sm font-black text-foreground">Terms of Use — Styly Platform</p>
+          <p>Last updated: July 2025</p>
+          {[
+            ["1. Acceptance", "By accessing or using the Styly platform, you agree to be bound by these Terms of Use. If you disagree with any part of the terms, you may not access the service."],
+            ["2. Account Responsibilities", "You are responsible for maintaining the confidentiality of your account credentials. You agree to provide accurate information and update it as necessary. Styly reserves the right to terminate accounts that violate these terms."],
+            ["3. Brand Tagging & Commissions", "Users may tag brands in their posts. Approved tags earn XP and commission on resulting sales according to your grade level. Commission fraud or fake tags will result in immediate account suspension and forfeiture of all earned commissions."],
+            ["4. Content Policy", "You retain ownership of content you post. By posting, you grant Styly a non-exclusive licence to display, distribute, and promote your content on the platform. You must not post offensive, misleading, or infringing content."],
+            ["5. Payments", "Commission payouts are processed monthly. Styly reserves the right to withhold payment if fraudulent activity is suspected. The minimum payout threshold is $20."],
+            ["6. Modifications", "Styly reserves the right to modify these terms at any time. Continued use after changes constitutes acceptance of the new terms."],
+          ].map(([title, text]) => (
+            <div key={title} className="space-y-1">
+              <p className="font-bold text-foreground/90 text-[11px]">{title}</p>
+              <p>{text as string}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* ── Privacy Policy Modal ── */}
+  {showPrivacy && (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPrivacy(false)} />
+      <div className="relative w-full sm:max-w-md bg-white dark:bg-[#1A1A1A] rounded-t-3xl sm:rounded-2xl shadow-2xl border border-border/60 max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-4 duration-300">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border/30 shrink-0">
+          <h2 className="font-black text-base flex items-center gap-2"><Shield className="h-4 w-4 text-primary" /> Privacy Policy</h2>
+          <button onClick={() => setShowPrivacy(false)} className="h-8 w-8 rounded-full hover:bg-accent flex items-center justify-center"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="overflow-y-auto p-5 space-y-4 text-xs text-muted-foreground leading-relaxed">
+          <p className="text-sm font-black text-foreground">Privacy Policy — Styly</p>
+          <p>Effective date: July 2025</p>
+          {[
+            ["Information We Collect", "We collect information you provide directly (name, email, profile photo, body measurements for the mannequin feature), as well as usage data such as posts, interactions, and purchase history."],
+            ["How We Use Your Information", "Your data is used to personalise your feed, power the mannequin try-on feature, calculate brand tag commissions, process orders, and improve the platform. We do not sell your personal data to third parties."],
+            ["Data Sharing", "Aggregated, anonymised style data may be shared with brand partners to help them understand trends. Your identity is never disclosed without your explicit consent."],
+            ["Body Measurement Data", "Measurements you enter for the mannequin are stored locally on your device and optionally synced to your account. They are used solely for the virtual try-on experience and are never shared externally."],
+            ["Your Rights", "You have the right to access, correct, or delete your personal data at any time by contacting support@styly.app. You may also export your data from the Settings page."],
+            ["Cookies & Tracking", "We use essential cookies to keep you logged in and to maintain your preferences. Optional analytics cookies can be disabled in your browser settings."],
+            ["Security", "We use industry-standard encryption (TLS 1.3) to protect your data in transit and AES-256 at rest. However, no system is 100% secure. Please keep your credentials safe."],
+          ].map(([title, text]) => (
+            <div key={title} className="space-y-1">
+              <p className="font-bold text-foreground/90 text-[11px]">{title}</p>
+              <p>{text as string}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )}
+
+  </AppShell>
+  );
+}
+
+// ─── Theme Icons ─────────────────────────────────────────────────────────────
+
+function SunIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-amber-400">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-foreground/80">
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+    </svg>
+  );
+}
+
+// ─── AI Stylista Chat Tab ────────────────────────────────────────────────────
+
+interface ChatMessage {
+  id: string;
+  role: "user" | "model";
+  content: string;
+  timestamp: Date;
+}
+
+function StylistaAITab({ onTryOn }: { onTryOn: () => void }) {
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: "welcome",
+      role: "model",
+      content: "Hey! 👗 I'm Stylista, your personal AI fashion stylist. Tell me what you're looking for — an occasion, a vibe, or just describe how you want to feel in your outfit, and I'll build the perfect look for you!",
+      timestamp: new Date(),
+    },
+  ]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [showOutfits, setShowOutfits] = useState(false);
+  const [outfitStyle, setOutfitStyle] = useState("Casual");
+  const [suggestedOutfits, setSuggestedOutfits] = useState<any[]>([]);
+  const [outfitsLoading, setOutfitsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const chatMutation = trpc.stylista.chat.useMutation();
+  const { refetch: fetchOutfits } = trpc.stylista.getOutfitSuggestions.useQuery(
+    { style: outfitStyle, color: "Mixed", occasion: "", budget: "" },
+    { enabled: false }
+  );
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isLoading]);
+
+  const sendMessage = async (overrideText?: string) => {
+    const text = (overrideText ?? input).trim();
+    if (!text || isLoading) return;
+
+    const userMsg: ChatMessage = {
+      id: `u_${Date.now()}`,
+      role: "user",
+      content: text,
+      timestamp: new Date(),
+    };
+
+    setMessages(prev => [...prev, userMsg]);
+    setInput("");
+    setIsLoading(true);
+
+    try {
+      const allMessages = [...messages, userMsg].map(m => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      const result = await chatMutation.mutateAsync({ messages: allMessages });
+
+      const aiMsg: ChatMessage = {
+        id: `a_${Date.now()}`,
+        role: "model",
+        content: result.reply,
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, aiMsg]);
+
+      if (result.generateOutfits) {
+        setOutfitsLoading(true);
+        // Extract style from conversation
+        const convoText = allMessages.map(m => m.content).join(" ").toLowerCase();
+        const detectedStyle =
+          convoText.includes("casual") ? "Casual" :
+          convoText.includes("formal") ? "Formal" :
+          convoText.includes("street") ? "Streetwear" :
+          convoText.includes("date") ? "Date Night" :
+          convoText.includes("sport") || convoText.includes("gym") ? "Activewear" :
+          "Casual";
+        setOutfitStyle(detectedStyle);
+        const { data } = await fetchOutfits();
+        if (data) setSuggestedOutfits(data);
+        setShowOutfits(true);
+        setOutfitsLoading(false);
+      }
+    } catch (err: any) {
+      const errMsg: ChatMessage = {
+        id: `err_${Date.now()}`,
+        role: "model",
+        content: "Oops, I had a little hiccup! Could you say that again? 😊",
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errMsg]);
+    } finally {
+      setIsLoading(false);
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  const resetChat = () => {
+    setMessages([{
+      id: "welcome",
+      role: "model",
+      content: "Hey! 👗 I'm Stylista, your personal AI fashion stylist. Tell me what you're looking for — an occasion, a vibe, or just describe how you want to feel in your outfit, and I'll build the perfect look for you!",
+      timestamp: new Date(),
+    }]);
+    setShowOutfits(false);
+    setSuggestedOutfits([]);
+    setInput("");
+  };
+
+  return (
+    <div className="flex flex-col h-full space-y-3 animate-fade-up">
+      {/* Header */}
+      <div className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-primary/10 to-orange-400/10 border border-primary/15">
+        <div className="flex items-center gap-2.5">
+          <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-primary to-orange-400 flex items-center justify-center shrink-0">
+            <Sparkles className="h-4 w-4 text-white" />
+          </div>
+          <div>
+            <p className="font-black text-xs">Styly AI Stylista</p>
+            <div className="flex items-center gap-1">
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <p className="text-[10px] text-muted-foreground">Active · Ready to style you</p>
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={resetChat}
+          className="text-[10px] text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-accent transition-all font-semibold"
+        >
+          New chat
+        </button>
+      </div>
+
+      {/* Chat messages */}
+      <div className="flex flex-col gap-3 max-h-[380px] overflow-y-auto no-scrollbar pr-1">
+        {messages.map((msg) => (
+          <div
+            key={msg.id}
+            className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+          >
+            {/* Avatar */}
+            {msg.role === "model" && (
+              <div className="h-7 w-7 rounded-full bg-gradient-to-tr from-primary to-orange-400 flex items-center justify-center shrink-0 mt-0.5">
+                <Sparkles className="h-3.5 w-3.5 text-white" />
+              </div>
+            )}
+
+            {/* Bubble */}
+            <div
+              className={`max-w-[82%] px-3 py-2.5 rounded-2xl text-xs leading-relaxed ${
+                msg.role === "user"
+                  ? "bg-primary text-white rounded-tr-sm"
+                  : "bg-white dark:bg-[#2A2A2A] border border-border/30 text-foreground rounded-tl-sm shadow-sm"
+              }`}
+            >
+              {msg.content.split("**").map((part, i) =>
+                i % 2 === 1 ? <strong key={i}>{part}</strong> : <span key={i}>{part}</span>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {/* Typing indicator */}
+        {isLoading && (
+          <div className="flex gap-2">
+            <div className="h-7 w-7 rounded-full bg-gradient-to-tr from-primary to-orange-400 flex items-center justify-center shrink-0">
+              <Sparkles className="h-3.5 w-3.5 text-white" />
+            </div>
+            <div className="bg-white dark:bg-[#2A2A2A] border border-border/30 px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm flex items-center gap-1.5">
+              <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
+              <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
+              <div className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Outfit results */}
+      {outfitsLoading && (
+        <div className="space-y-2">
+          {[1, 2, 3].map(n => (
+            <div key={n} className="h-20 rounded-2xl bg-muted/40 animate-pulse" />
+          ))}
+        </div>
+      )}
+
+      {showOutfits && !outfitsLoading && suggestedOutfits.length > 0 && (
+        <div className="space-y-2 pt-1">
+          <div className="flex items-center gap-1.5">
+            <CheckCircle className="h-3.5 w-3.5 text-primary" />
+            <p className="text-[11px] font-bold text-primary">{suggestedOutfits.length} outfits curated for you ✨</p>
+          </div>
+          {suggestedOutfits.map((outfit, i) => (
+            <div
+              key={outfit.id}
+              className="flex items-center gap-3 p-3 rounded-2xl border border-border/30 bg-white dark:bg-[#1A1A1A] hover:border-primary/20 hover:shadow-md transition-all animate-fade-up"
+              style={{ animationDelay: `${i * 80}ms` }}
+            >
+              <div className="h-16 w-16 rounded-xl bg-muted overflow-hidden shrink-0 border border-border/20">
+                <img
+                  src={outfit.image}
+                  alt={outfit.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => { (e.target as HTMLImageElement).src = "/product_dress_1.png"; }}
+                />
+              </div>
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <p className="font-bold text-xs truncate">{outfit.name}</p>
+                  <span className="shrink-0 text-[8px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-bold">AI Pick</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground line-clamp-2">{outfit.desc}</p>
+                <p className="text-primary font-black text-sm">{outfit.price} TND</p>
+              </div>
+              <button
+                onClick={onTryOn}
+                className="shrink-0 h-8 px-3 rounded-full bg-primary/10 text-primary text-[10px] font-bold hover:bg-primary hover:text-white transition-all flex items-center gap-1"
+              >
+                <Sparkles className="h-3 w-3" /> Try On
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={resetChat}
+            className="w-full h-9 text-xs font-semibold text-muted-foreground hover:text-foreground border border-border/30 rounded-full transition-all hover:border-primary/30"
+          >
+            ↺ Start new style session
+          </button>
+        </div>
+      )}
+
+      {/* Quick suggestion chips */}
+      {messages.length <= 2 && !isLoading && (
+        <div className="flex flex-wrap gap-2">
+          {["I need a date night outfit 🌹", "Casual everyday look", "Office-ready style", "Streetwear look 🔥"].map(s => (
+            <button
+              key={s}
+              onClick={() => sendMessage(s)}
+              className="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-muted border border-border/30 text-muted-foreground hover:border-primary/40 hover:text-primary transition-all"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Input bar */}
+      <div className="flex items-end gap-2 bg-white dark:bg-[#1A1A1A] border border-border/40 rounded-2xl p-2 shadow-sm focus-within:ring-2 focus-within:ring-primary/30 transition-all">
+        <textarea
+          ref={inputRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Tell me your vibe, occasion, or style..."
+          rows={1}
+          className="flex-1 text-xs bg-transparent outline-none resize-none leading-relaxed pt-1 px-1 max-h-24 no-scrollbar"
+          style={{ minHeight: "28px" }}
+        />
+        <button
+          onClick={() => sendMessage()}
+          disabled={!input.trim() || isLoading}
+          className="h-9 w-9 rounded-xl bg-primary text-white flex items-center justify-center shrink-0 hover:opacity-90 disabled:opacity-40 transition-all"
+        >
+          {isLoading ? (
+            <div className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
+          )}
+        </button>
+      </div>
+      <p className="text-center text-[9px] text-muted-foreground/50">Powered by Styly AI · Press Enter to send</p>
+    </div>
+  );
+}
