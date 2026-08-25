@@ -87,8 +87,8 @@ async function startServer() {
   });
 
   const authRateLimiter = createRateLimiter({
-    windowMs: 60 * 1000, // 1 minute
-    max: 5, // 5 requests max
+    windowMs: 60 * 1000, // 1 minute window
+    max: 8,              // 8 attempts max (generous enough for real users)
     message: "Too many authentication attempts. Please try again in a minute."
   });
 

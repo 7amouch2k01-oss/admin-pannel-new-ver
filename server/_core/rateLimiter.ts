@@ -21,8 +21,9 @@ export function createRateLimiter(options: { windowMs: number; max: number; mess
   const { windowMs, max, message = "Too many requests from this IP, please try again later." } = options;
 
   return (req: Request, res: Response, next: NextFunction) => {
-    // Basic IP resolution
-    const ip = req.ip || req.headers["x-forwarded-for"]?.toString() || "unknown-ip";
+    // Robust IP resolution behind reverse proxies (like Railway, Cloudflare, Nginx)
+    const forwarded = req.headers["x-forwarded-for"];
+    const ip = (typeof forwarded === "string" ? forwarded.split(",")[0].trim() : Array.isArray(forwarded) ? forwarded[0] : null) || req.ip || req.socket.remoteAddress || "unknown-ip";
     const now = Date.now();
 
     let info = ipCache.get(ip);
