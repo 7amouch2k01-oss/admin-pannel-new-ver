@@ -17,7 +17,7 @@ interface UserDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   user: {
-    id: number;
+    id: string;
     name: string | null;
     email: string | null;
     role: "admin" | "user";
@@ -87,7 +87,7 @@ export function UserDetailDialog({ open, onOpenChange, user }: UserDetailDialogP
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Email</Label>
-              <p className="text-sm font-medium mt-1">{user.email || "-"}</p>
+              <p className="text-sm font-medium mt-1 break-all">{user.email || "-"}</p>
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">Member Since</Label>

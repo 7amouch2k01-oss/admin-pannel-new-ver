@@ -1,6 +1,3 @@
-export { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
-
-// Generate login URL at runtime so redirect URI reflects the current origin.
-export const getLoginUrl = () => {
-  return "/auth";
-};
+// Where an unauthenticated visitor is sent. Kept as a function because several
+// call sites treat it as one.
+export const getLoginUrl = () => "/auth";

@@ -21,7 +21,7 @@ export default function AdminGuard({
         setLocation("/unauthorized");
       } else if (permission && permission !== "dashboard") {
         const currentUser = user as any;
-        const isOwner = currentUser.isOwner === true || currentUser.id === 1;
+        const isOwner = currentUser.isOwner === true;
         if (!isOwner) {
           const perms: string[] = Array.isArray(currentUser.permissions)
             ? currentUser.permissions
@@ -44,7 +44,7 @@ export default function AdminGuard({
 
   if (permission && permission !== "dashboard") {
     const currentUser = user as any;
-    const isOwner = currentUser.isOwner === true || currentUser.id === 1;
+    const isOwner = currentUser.isOwner === true;
     if (!isOwner) {
       const perms: string[] = Array.isArray(currentUser.permissions)
         ? currentUser.permissions

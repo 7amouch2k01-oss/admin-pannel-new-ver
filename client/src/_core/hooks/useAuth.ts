@@ -1,6 +1,6 @@
 import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
-import { TRPCClientError } from "@trpc/client";
+import { isUnauthorized } from "@/lib/api";
 import { useCallback, useEffect, useMemo } from "react";
 
 type UseAuthOptions = {
@@ -13,6 +13,8 @@ export function useAuth(options?: UseAuthOptions) {
     options ?? {};
   const utils = trpc.useUtils();
 
+  // Resolves to `null` when signed out rather than throwing, so the sign-in
+  // page can render instead of redirect-looping.
   const meQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
     refetchOnWindowFocus: false,
@@ -28,12 +30,8 @@ export function useAuth(options?: UseAuthOptions) {
     try {
       await logoutMutation.mutateAsync();
     } catch (error: unknown) {
-      if (
-        error instanceof TRPCClientError &&
-        error.data?.code === "UNAUTHORIZED"
-      ) {
-        return;
-      }
+      // Already signed out is not a failure.
+      if (isUnauthorized(error)) return;
       throw error;
     } finally {
       utils.auth.me.setData(undefined, null);
@@ -42,10 +40,6 @@ export function useAuth(options?: UseAuthOptions) {
   }, [logoutMutation, utils]);
 
   const state = useMemo(() => {
-    localStorage.setItem(
-      "manus-runtime-user-info",
-      JSON.stringify(meQuery.data)
-    );
     return {
       user: meQuery.data ?? null,
       loading: meQuery.isLoading || logoutMutation.isPending,

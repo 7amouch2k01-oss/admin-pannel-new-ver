@@ -24,20 +24,7 @@ export default function Auth() {
 
   React.useEffect(() => {
     if (!loading && user) {
-      const currentPort = window.location.port;
-      if (user.role === "admin") {
-        if (currentPort === "3001") {
-          setLocation("/admin");
-        } else {
-          setLocation("/feed");
-        }
-      } else {
-        if (currentPort === "3001") {
-          window.location.href = `${window.location.protocol}//${window.location.hostname}:3000/feed`;
-        } else {
-          setLocation("/feed");
-        }
-      }
+      setLocation(user.role === "admin" ? "/admin" : "/unauthorized");
     }
   }, [user, loading, setLocation]);
   
@@ -48,7 +35,6 @@ export default function Auth() {
   const [signUpEmail, setSignUpEmail] = useState("");
   const [signUpPassword, setSignUpPassword] = useState("");
   const [signUpRole, setSignUpRole] = useState<"admin" | "user">("admin");
-  const [verificationCode, setVerificationCode] = useState("");
 
   // Forgot password state
   const [showForgotModal, setShowForgotModal] = useState(false);
@@ -60,8 +46,6 @@ export default function Auth() {
   // tRPC Mutations
   const signInMutation = trpc.auth.signIn.useMutation();
   const signUpMutation = trpc.auth.signUp.useMutation();
-  const verifyEmailMutation = trpc.auth.verifyEmail.useMutation();
-  const resendVerificationMutation = trpc.auth.resendVerificationCode.useMutation();
   const requestResetMutation = trpc.auth.requestPasswordReset.useMutation();
 
   const handleForgotSubmit = async (e: React.FormEvent) => {
@@ -72,7 +56,7 @@ export default function Auth() {
     }
     setIsLoading(true);
     try {
-      const res = await requestResetMutation.mutateAsync({ email: forgotEmail, isAdminPanel: true });
+      const res = await requestResetMutation.mutateAsync({ email: forgotEmail });
       toast.success(res.message);
       setForgotSent(true);
     } catch (err: any) {
@@ -127,152 +111,7 @@ export default function Auth() {
     }
   };
 
-  const handleVerifyEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (verificationCode.length !== 6) {
-      toast.error("Please enter a valid 6-digit verification code");
-      return;
-    }
-    
-    setIsLoading(true);
-    try {
-      await verifyEmailMutation.mutateAsync({ code: verificationCode });
-      toast.success("Email verified successfully!");
-      await refresh();
-    } catch (err: any) {
-      toast.error(err.message || "Invalid verification code");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  const handleResendCode = async () => {
-    setIsLoading(true);
-    try {
-      await resendVerificationMutation.mutateAsync();
-      toast.success("Verification code resent! Check your terminal logs.");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to resend code");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (user && !user.isEmailVerified) {
-    return (
-      <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-gradient-to-tr from-neutral-50 via-neutral-100 to-red-50/20 dark:from-neutral-900 dark:via-neutral-950 dark:to-black p-4 transition-colors duration-300">
-        {/* Floating Theme Toggle */}
-        {toggleTheme && (
-          <div className="absolute top-4 right-4 z-20">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={toggleTheme}
-              className="h-10 w-10 rounded-xl bg-white/80 dark:bg-neutral-900/60 border-neutral-200 dark:border-neutral-800 backdrop-blur-md shadow-sm dark:shadow-md text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 focus:outline-none"
-              aria-label="Toggle theme"
-            >
-              {theme === "dark" ? <Sun className="h-5 w-5 text-orange-500 animate-pulse" /> : <Moon className="h-5 w-5 text-indigo-600" />}
-            </Button>
-          </div>
-        )}
-
-        {/* Decorative Blur Blobs */}
-        <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-red-500/5 dark:bg-red-500/10 rounded-full blur-[100px] pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-80 h-80 bg-orange-500/5 dark:bg-orange-500/10 rounded-full blur-[100px] pointer-events-none" />
-
-        <div className="w-full max-w-[460px] z-10 animate-in fade-in zoom-in duration-500">
-          <div className="flex flex-col items-center gap-2.5 mb-8 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full overflow-hidden shadow-xl shadow-red-500/15 border border-white/10">
-              <img src="/logo.png" alt="Styly Logo" className="h-full w-full object-cover" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-[#FF6B6B] to-[#FF8C42] bg-clip-text text-transparent">
-                Email Verification
-              </h1>
-              <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1.5 font-medium">
-                Verify your account to continue
-              </p>
-            </div>
-          </div>
-
-          <Card className="border-neutral-200 dark:border-neutral-800 bg-white/70 dark:bg-neutral-900/60 backdrop-blur-xl shadow-xl dark:shadow-2xl dark:shadow-black/60 relative overflow-hidden transition-colors duration-300">
-            <CardHeader className="space-y-1.5 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 mb-2 animate-bounce">
-                <Mail className="h-6 w-6" />
-              </div>
-              <CardTitle className="text-xl font-bold text-neutral-900 dark:text-white">Verify Your Email</CardTitle>
-              <CardDescription className="text-neutral-500 dark:text-neutral-400 text-sm">
-                We've sent a 6-digit verification code to <span className="font-semibold text-neutral-700 dark:text-neutral-300">{user.email}</span>. Please enter it below to verify your account.
-              </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleVerifyEmail}>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="verification-code" className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">6-Digit Verification Code</Label>
-                  <Input
-                    id="verification-code"
-                    type="text"
-                    placeholder="123456"
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    className="text-center font-mono text-xl tracking-[0.5em] h-12 bg-white/95 dark:bg-neutral-950/60 border-neutral-200 dark:border-neutral-800 text-neutral-900 dark:text-white focus:border-red-500/50 focus:ring-red-500/20"
-                    required
-                    disabled={isLoading}
-                  />
-                </div>
-
-                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-[11px] text-amber-600 dark:text-amber-400 font-medium flex flex-col gap-1 shadow-inner">
-                  <div className="flex items-center gap-1.5 font-bold">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Sandbox Mode Helper
-                  </div>
-                  Check the backend console logs to copy the 6-digit verification code generated for testing.
-                </div>
-              </CardContent>
-              <CardFooter className="flex flex-col gap-3.5">
-                <Button 
-                  type="submit" 
-                  className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-semibold shadow-lg shadow-red-500/10 active:scale-[0.98] transition-all"
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Verifying..." : "Verify Code"}
-                </Button>
-                {/* Skip verification — user can still browse but cannot purchase */}
-                <button
-                  type="button"
-                  onClick={() => setLocation("/feed")}
-                  className="w-full h-10 rounded-xl border border-neutral-200 dark:border-neutral-700 text-sm font-semibold text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all"
-                >
-                  Skip for now — Browse without purchasing
-                </button>
-                <div className="flex items-center justify-between w-full text-xs">
-                  <button
-                    type="button"
-                    onClick={handleResendCode}
-                    className="text-neutral-500 hover:text-red-500 dark:text-neutral-400 dark:hover:text-red-400 font-medium transit-all"
-                    disabled={isLoading}
-                  >
-                    Resend Code
-                  </button>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      await logout();
-                      setVerificationCode("");
-                    }}
-                    className="text-neutral-500 hover:text-red-500 dark:text-neutral-400 dark:hover:text-red-400 font-medium transit-all"
-                  >
-                    Sign out
-                  </button>
-                </div>
-              </CardFooter>
-            </form>
-          </Card>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-gradient-to-tr from-neutral-50 via-neutral-100 to-red-50/20 dark:from-neutral-900 dark:via-neutral-950 dark:to-black p-4 transition-colors duration-300">

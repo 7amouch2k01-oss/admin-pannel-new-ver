@@ -17,10 +17,13 @@ import { trpc } from "@/lib/trpc";
 import { Loader2, DollarSign, TrendingUp, TrendingDown, Undo2, BadgePercent, Sparkles } from "lucide-react";
 
 export default function Analytics() {
+  // `analytics.full` already carries revenue/refunds/orders AND users/newUsers,
+  // so the separate salesTrends and userGrowth queries were redundant round-trips
+  // that each re-ran the whole 12-month aggregation server-side.
   const { data: fullAnalytics = [], isLoading: fullLoading } = trpc.analytics.full.useQuery();
-  const { data: salesTrends = [] } = trpc.analytics.salesTrends.useQuery();
-  const { data: userGrowth = [] } = trpc.analytics.userGrowth.useQuery();
   const { data: financial, isLoading: financeLoading } = trpc.analytics.financialSummary.useQuery();
+  const userGrowth = fullAnalytics;
+  const hasActivity = fullAnalytics.some((r: any) => r.orders > 0 || r.revenue > 0);
 
   const isLoading = fullLoading || financeLoading;
 
@@ -65,7 +68,7 @@ export default function Analytics() {
               {isLoading ? "..." : `-${(financial?.totalRefunds || 0).toFixed(2)} TND`}
             </div>
             <p className="text-[11px] text-muted-foreground mt-1">
-              {financial?.refundsCount || 0} returned orders refunded
+              {financial?.refundsCount || 0} returned{(financial?.pendingRefundsCount ?? 0) > 0 ? ` · ${financial?.pendingRefundsCount} claim(s) open` : ""}
             </p>
           </CardContent>
         </Card>
@@ -95,8 +98,8 @@ export default function Analytics() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-black text-primary">
-              {isLoading ? "..." : `+${(financial?.netGain || 0).toFixed(2)} TND`}
+            <div className={`text-2xl font-black ${(financial?.netGain ?? 0) < 0 ? "text-rose-500" : "text-primary"}`}>
+              {isLoading ? "..." : `${(financial?.netGain ?? 0) < 0 ? "" : "+"}${(financial?.netGain || 0).toFixed(2)} TND`}
             </div>
             <p className="text-[11px] text-muted-foreground mt-1">
               Gross sales minus refunds & creator payouts
@@ -114,14 +117,19 @@ export default function Analytics() {
             <CardDescription className="text-xs">Gross checkouts vs customer refunds and net retained volume (TND)</CardDescription>
           </CardHeader>
           <CardContent>
+            {!isLoading && !hasActivity ? (
+              <div className="h-[280px] flex items-center justify-center text-xs text-muted-foreground">
+                No orders recorded yet.
+              </div>
+            ) : (
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={fullAnalytics}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                <XAxis dataKey="month" stroke="rgba(255,255,255,0.4)" fontSize={11} />
-                <YAxis stroke="rgba(255,255,255,0.4)" fontSize={11} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={11} />
+                <YAxis stroke="var(--muted-foreground)" fontSize={11} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: "#151515", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px" }}
-                  labelStyle={{ color: "#fff", fontWeight: "bold" }}
+                  contentStyle={{ backgroundColor: "var(--popover)", color: "var(--popover-foreground)", border: "1px solid var(--border)", borderRadius: "12px" }}
+                  labelStyle={{ color: "var(--popover-foreground)", fontWeight: "bold" }}
                 />
                 <Legend wrapperStyle={{ fontSize: "11px" }} />
                 <Line type="monotone" dataKey="revenue" stroke="#f43f5e" strokeWidth={2} dot={false} name="Gross Sales (TND)" />
@@ -129,6 +137,7 @@ export default function Analytics() {
                 <Line type="monotone" dataKey="netRevenue" stroke="#10b981" strokeWidth={2.5} dot={false} name="Net Revenue (TND)" />
               </LineChart>
             </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -141,12 +150,12 @@ export default function Analytics() {
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <AreaChart data={userGrowth}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                <XAxis dataKey="month" stroke="rgba(255,255,255,0.4)" fontSize={11} />
-                <YAxis stroke="rgba(255,255,255,0.4)" fontSize={11} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={11} />
+                <YAxis stroke="var(--muted-foreground)" fontSize={11} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: "#151515", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px" }}
-                  labelStyle={{ color: "#fff", fontWeight: "bold" }}
+                  contentStyle={{ backgroundColor: "var(--popover)", color: "var(--popover-foreground)", border: "1px solid var(--border)", borderRadius: "12px" }}
+                  labelStyle={{ color: "var(--popover-foreground)", fontWeight: "bold" }}
                 />
                 <Legend wrapperStyle={{ fontSize: "11px" }} />
                 <Area type="monotone" dataKey="users" stroke="#8b5cf6" fill="rgba(139,92,246,0.15)" name="Total Users" />

@@ -10,6 +10,8 @@ import {
   DollarSign, Clock, CreditCard, Ban, ArrowUpRight
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { ShortId, shortId } from "@/components/ShortId";
+import { mediaUrl } from "@/lib/media";
 import { useState } from "react";
 import {
   DropdownMenu,
@@ -49,7 +51,6 @@ export default function Brands() {
   const [rejectionReason, setRejectionReason] = useState("");
 
   const { data: brands = [], isLoading: brandsLoading, refetch: refetchBrands } = trpc.brands.list.useQuery();
-  const { data: devices = [], isLoading: devicesLoading } = trpc.devices.list.useQuery();
   const { data: pendingRequests = [], isLoading: requestsLoading, refetch: refetchRequests } = trpc.brandStore.listPending.useQuery();
   const { data: withdrawals = [], isLoading: isWithdrawalsLoading, refetch: refetchWithdrawals } = trpc.withdrawals.adminList.useQuery();
 
@@ -59,7 +60,7 @@ export default function Brands() {
   const updateWithdrawalStatusMutation = trpc.withdrawals.adminUpdateStatus.useMutation();
   const utils = trpc.useUtils();
 
-  const isLoading = brandsLoading || devicesLoading || requestsLoading;
+  const isLoading = brandsLoading || requestsLoading;
 
   const filteredBrands = brands.filter((brand: any) =>
     (brand.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -70,8 +71,6 @@ export default function Brands() {
   // Overview metrics calculations
   const totalBrands = brands.length;
   const activeBrands = brands.filter((b: any) => b.isActive).length;
-  const pendingCount = (pendingRequests as any[]).length;
-  const totalProducts = devices.filter((d: any) => d.brandId !== null).length;
 
   const handleAddBrand = () => {
     setSelectedBrand(null);
@@ -141,7 +140,7 @@ export default function Brands() {
         adminNotes: "Approved by admin, scheduled for brand bank transfer",
       });
       await refetchWithdrawals();
-      toast.success(`Brand payout #${w.id} approved & moved to processing`);
+      toast.success(`Brand payout #${shortId(w.id)} approved & moved to processing`);
     } catch {
       toast.error("Failed to update payout status");
     }
@@ -155,7 +154,7 @@ export default function Brands() {
         adminNotes: `Transferred via ${w.paymentMethod.toUpperCase()}`,
       });
       await refetchWithdrawals();
-      toast.success(`Brand payout #${w.id} of ${w.amount} TND marked as completed! 💰`);
+      toast.success(`Brand payout #${shortId(w.id)} of ${Number(w.amount).toFixed(2)} TND marked as completed! 💰`);
     } catch {
       toast.error("Failed to complete payout");
     }
@@ -176,14 +175,14 @@ export default function Brands() {
         rejectionReason: rejectionReason || "Declined by platform administrator",
       });
       await refetchWithdrawals();
-      toast.success(`Brand withdrawal #${selectedWithdrawalForReject.id} rejected. Balance refunded.`);
+      toast.success(`Brand withdrawal #${shortId(selectedWithdrawalForReject.id)} rejected. Balance refunded.`);
       setRejectModalOpen(false);
     } catch {
       toast.error("Failed to reject withdrawal request");
     }
   };
 
-  const handleApproveStore = async (storeId: number, approve: boolean) => {
+  const handleApproveStore = async (storeId: string, approve: boolean) => {
     try {
       await approveMutation.mutateAsync({ storeId, approve });
       toast.success(approve ? "Brand store application approved! 🎉" : "Brand store application rejected.");
@@ -324,10 +323,15 @@ export default function Brands() {
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
                         <div className="h-11 w-11 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black text-sm border border-primary/20">
-                          {brand.logoUrl ? (
-                            <img src={brand.logoUrl} alt={brand.name} className="h-full w-full object-cover rounded-2xl" />
+                          {mediaUrl(brand.logoUrl) ? (
+                            <img
+                              src={mediaUrl(brand.logoUrl) as string}
+                              onError={(e) => { e.currentTarget.style.display = "none"; }}
+                              alt={brand.name}
+                              className="h-full w-full object-cover rounded-2xl"
+                            />
                           ) : (
-                            brand.name[0].toUpperCase()
+                            (brand.name?.[0] ?? "?").toUpperCase()
                           )}
                         </div>
                         <div>
@@ -335,7 +339,7 @@ export default function Brands() {
                             <h3 className="font-bold text-sm text-foreground">{brand.name}</h3>
                             {brand.isActive && <CheckCircle2 size={13} className="text-emerald-500" />}
                           </div>
-                          <p className="text-xs text-muted-foreground font-mono">{brand.category || "Fashion"} · {brand.country}</p>
+                          <p className="text-xs text-muted-foreground font-mono">{[brand.category, brand.country].filter(Boolean).join(" · ") || "No category set"}</p>
                         </div>
                       </div>
 
@@ -348,12 +352,12 @@ export default function Brands() {
                     </div>
 
                     <p className="text-xs text-muted-foreground line-clamp-2">
-                      {brand.description || "Official fashion brand partner on the Styly network."}
+                      {brand.description || <span className="italic opacity-60">No description provided.</span>}
                     </p>
                   </div>
 
                   <div className="flex items-center justify-between pt-4 border-t border-border/40 mt-3" onClick={(e) => e.stopPropagation()}>
-                    <span className="text-[11px] text-muted-foreground font-mono">ID #{brand.id}</span>
+                    <ShortId id={brand.id} className="text-[11px] text-muted-foreground shrink-0" />
                     <div className="flex gap-1.5">
                       <Button
                         size="sm"
@@ -411,7 +415,7 @@ export default function Brands() {
                       Owner: <strong>{req.ownerName}</strong> · Email: {req.email} · Phone: {req.phone || "-"}
                     </p>
                     <p className="text-[11px] text-muted-foreground font-mono">
-                      Applied: {req.createdAt ? new Date(req.createdAt).toLocaleDateString() : "Recent"}
+                      Applied: {req.createdAt ? new Date(req.createdAt).toLocaleDateString() : "—"}
                     </p>
                   </div>
 
@@ -514,8 +518,8 @@ export default function Brands() {
                     filteredBrandWithdrawals.map((w: any) => {
                       return (
                         <TableRow key={w.id} className="border-border/50 hover:bg-muted/30 transition">
-                          <TableCell className="font-mono text-xs font-bold text-muted-foreground">
-                            #{w.id}
+                          <TableCell className="text-xs font-bold text-muted-foreground">
+                            <ShortId id={w.id} />
                           </TableCell>
 
                           <TableCell>
@@ -659,7 +663,7 @@ export default function Brands() {
           <DialogHeader>
             <DialogTitle className="text-lg font-bold flex items-center gap-2 text-rose-500">
               <Ban className="h-5 w-5" />
-              Reject Brand Payout #{selectedWithdrawalForReject?.id}
+              Reject Brand Payout <ShortId id={selectedWithdrawalForReject?.id} className="text-base font-normal text-muted-foreground" />
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
               Please provide the reason for declining this brand store profit withdrawal of {selectedWithdrawalForReject?.amount} TND. The amount will be refunded to the brand's balance.
@@ -728,7 +732,7 @@ export default function Brands() {
                 {viewBrandModal.website && (
                   <div className="pt-2">
                     <span className="text-muted-foreground uppercase font-bold text-[10px]">Official Website</span>
-                    <p className="text-xs text-primary font-mono mt-0.5">{viewBrandModal.website}</p>
+                    <a href={viewBrandModal.website} target="_blank" rel="noreferrer" className="block text-xs text-primary font-mono mt-0.5 break-all hover:underline">{viewBrandModal.website}</a>
                   </div>
                 )}
               </div>

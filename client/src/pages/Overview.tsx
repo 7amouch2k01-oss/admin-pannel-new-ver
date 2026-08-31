@@ -14,7 +14,7 @@ export default function Overview() {
   const { data: finance } = trpc.analytics.financialSummary.useQuery();
 
   const currentUser = user as any;
-  const isOwner = !currentUser || currentUser.isOwner === true || currentUser.id === 1;
+  const isOwner = currentUser?.isOwner === true;
   const userPermissions: string[] = isOwner
     ? ["dashboard", "users", "products", "orders", "analytics", "brands", "settings"]
     : Array.isArray(currentUser?.permissions)
@@ -62,7 +62,7 @@ export default function Overview() {
     {
       title: "Platform Analytics",
       desc: "Financial overview, revenue & gains",
-      value: finance?.grossRevenue !== undefined ? `${finance.grossRevenue.toFixed(0)} TND` : metrics?.totalRevenue ? `${metrics.totalRevenue} TND` : "0 TND",
+      value: finance?.grossRevenue !== undefined ? `${finance.grossRevenue.toFixed(0)} TND` : `${(metrics?.totalRevenue ?? 0).toFixed(0)} TND`,
       subtext: `Net Gain: ${finance?.netGain !== undefined ? finance.netGain.toFixed(0) : "0"} TND`,
       icon: BarChart3,
       color: "text-emerald-500",
@@ -172,7 +172,9 @@ export default function Overview() {
             <div className="space-y-1">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Processed Refunds</p>
               <p className="text-2xl font-black text-rose-500">-{finance.totalRefunds.toFixed(2)} TND</p>
-              <p className="text-[11px] text-muted-foreground">{finance.refundsCount} returned orders</p>
+              <p className="text-[11px] text-muted-foreground">
+                {finance.refundsCount} returned{finance.pendingRefundsCount > 0 ? ` · ${finance.pendingRefundsCount} claim(s) open` : ""}
+              </p>
             </div>
             <div className="space-y-1">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Commissions Paid</p>
@@ -181,7 +183,9 @@ export default function Overview() {
             </div>
             <div className="space-y-1">
               <p className="text-xs font-semibold text-emerald-500 uppercase tracking-wider font-bold">Net Platform Revenue</p>
-              <p className="text-2xl font-black text-emerald-500">+{finance.netGain.toFixed(2)} TND</p>
+              <p className={`text-2xl font-black ${finance.netGain < 0 ? "text-rose-500" : "text-emerald-500"}`}>
+                {finance.netGain < 0 ? "" : "+"}{finance.netGain.toFixed(2)} TND
+              </p>
               <p className="text-[11px] text-emerald-600/80 font-medium">Retained platform revenue</p>
             </div>
           </div>

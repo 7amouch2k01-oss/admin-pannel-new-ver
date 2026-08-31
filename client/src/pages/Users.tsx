@@ -10,6 +10,8 @@ import {
   DollarSign, Clock, CreditCard, ArrowUpRight, Eye, RefreshCw, AlertCircle, Filter, Code2, Terminal
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { ShortId, shortId } from "@/components/ShortId";
+import { mediaUrl } from "@/lib/media";
 import { useState, useEffect } from "react";
 import { UserDetailDialog } from "@/components/UserDetailDialog";
 import { UserFormDialog } from "@/components/UserFormDialog";
@@ -40,7 +42,6 @@ const AVAILABLE_PERMISSIONS = [
 
 export default function Users() {
   const { data: users = [], isLoading } = trpc.users.list.useQuery();
-  const { data: brands = [] } = trpc.brands.list.useQuery();
   const { data: withdrawals = [], isLoading: isWithdrawalsLoading, refetch: refetchWithdrawals } = trpc.withdrawals.adminList.useQuery();
 
   const [activeTab, setActiveTab] = useState<"app" | "team" | "withdrawals">(() => {
@@ -53,7 +54,6 @@ export default function Users() {
   });
 
   const [appUserSubFilter, setAppUserSubFilter] = useState<"all" | "creators" | "normal">("all");
-  const [withdrawalTypeFilter, setWithdrawalTypeFilter] = useState<"all" | "user" | "brand">("all");
   const [withdrawalStatusFilter, setWithdrawalStatusFilter] = useState<"all" | "pending" | "approved" | "completed" | "rejected">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -83,30 +83,19 @@ export default function Users() {
   const updateWithdrawalStatusMutation = trpc.withdrawals.adminUpdateStatus.useMutation();
   const utils = trpc.useUtils();
 
-  // Determine if the currently logged-in admin is an Owner or Co-Owner
-  // Owners: name contains "soumaya" (case-insensitive)
-  // Co-owner: 3rd admin by lowest ID (sorted ascending)
+  // Owner and Co-Owner are decided by the server and arrive on each user row.
+  // They used to be guessed here — owners by substring-matching names and emails
+  // ("soumaya", "amine", a literal gmail address), and the co-owner by taking the
+  // 3rd admin after `.sort((a, b) => a.id - b.id)`. That sort returns NaN on UUID
+  // ids, which V8 treats as 0, so the list kept its arrival order and the
+  // role-management UI could unlock for an arbitrary admin.
   const { data: currentUser } = trpc.auth.me.useQuery(undefined, { refetchOnWindowFocus: false });
 
   const canManageAdminPermissions = (() => {
-    if (!currentUser || !users.length) return false;
-    const callerName = (currentUser.name || "").toLowerCase().trim();
-    const callerEmail = (currentUser.email || "").toLowerCase().trim();
-    const userObj = currentUser as any;
-    const isOwner =
-      userObj?.isOwner === true ||
-      callerName.includes("soumaya") ||
-      callerName.includes("rzeigui") ||
-      callerName.includes("amine") ||
-      callerEmail.includes("rzeigui") ||
-      callerEmail.includes("7amouch") ||
-      callerEmail === "medamine.rzeigui08@gmail.com";
-    if (isOwner) return true; // Owner
-    // Co-owner = 3rd admin by ID
-    const admins = users
-      .filter((u: any) => u.role === "admin")
-      .sort((a: any, b: any) => a.id - b.id);
-    return admins[2]?.id === currentUser.id;
+    if (!currentUser) return false;
+    if ((currentUser as any).isOwner === true) return true;
+    const myRow = users.find((u: any) => u.id === currentUser.id);
+    return myRow?.isCoOwner === true;
   })();
 
   // Classify users
@@ -248,7 +237,7 @@ export default function Users() {
         adminNotes: "Approved by admin, scheduled for transfer",
       });
       await refetchWithdrawals();
-      toast.success(`Withdrawal #${w.id} approved & moved to processing`);
+      toast.success(`Withdrawal #${shortId(w.id)} approved & moved to processing`);
     } catch {
       toast.error("Failed to update withdrawal status");
     }
@@ -262,7 +251,7 @@ export default function Users() {
         adminNotes: `Transferred via ${w.paymentMethod.toUpperCase()}`,
       });
       await refetchWithdrawals();
-      toast.success(`Payout #${w.id} of ${w.amount} TND marked as completed! 💰`);
+      toast.success(`Payout #${shortId(w.id)} of ${Number(w.amount).toFixed(2)} TND marked as completed! 💰`);
     } catch {
       toast.error("Failed to complete payout");
     }
@@ -283,7 +272,7 @@ export default function Users() {
         rejectionReason: rejectionReason || "Declined by platform administrator",
       });
       await refetchWithdrawals();
-      toast.success(`Withdrawal #${selectedWithdrawalForReject.id} rejected. Balance refunded.`);
+      toast.success(`Withdrawal #${shortId(selectedWithdrawalForReject.id)} rejected. Balance refunded.`);
       setRejectModalOpen(false);
     } catch {
       toast.error("Failed to reject withdrawal request");
@@ -640,8 +629,8 @@ export default function Users() {
                   filteredWithdrawals.map((w: any) => {
                     return (
                       <TableRow key={w.id} className="border-border/50 hover:bg-muted/30 transition">
-                        <TableCell className="font-mono text-xs font-bold text-muted-foreground">
-                          #{w.id}
+                        <TableCell className="text-xs font-bold text-muted-foreground">
+                          <ShortId id={w.id} />
                         </TableCell>
 
                         <TableCell>
@@ -830,21 +819,9 @@ export default function Users() {
                     const isCreator = (user.grade || 1) >= 2 || (user.stylePoints || 0) > 100;
                     const perms = user.permissions || ["dashboard", "users", "products", "orders", "analytics", "brands", "settings"];
 
-                    // Determine owner/co-owner rank for display
-                    const sortedAdmins = users
-                      .filter((u: any) => u.role === "admin")
-                      .sort((a: any, b: any) => a.id - b.id);
-                    const userName = (user.name || "").toLowerCase().trim();
-                    const userEmail = (user.email || "").toLowerCase().trim();
-                    const isOwnerUser =
-                      user.isOwner === true ||
-                      userName.includes("soumaya") ||
-                      userName.includes("rzeigui") ||
-                      userName.includes("amine") ||
-                      userEmail.includes("rzeigui") ||
-                      userEmail.includes("7amouch") ||
-                      userEmail === "medamine.rzeigui08@gmail.com";
-                    const isCoOwner = !isOwnerUser && sortedAdmins[2]?.id === user.id;
+                    // Owner/co-owner rank comes from the server (see above).
+                    const isOwnerUser = user.isOwner === true;
+                    const isCoOwner = !isOwnerUser && user.isCoOwner === true;
                     const adminRankLabel = isOwnerUser ? "Owner" : isCoOwner ? "Co-Owner" : null;
 
                     return (
@@ -858,9 +835,18 @@ export default function Users() {
                                 ? "bg-gradient-to-tr from-purple-500/20 to-blue-500/10 border-purple-500/30 text-purple-600"
                                 : "bg-gradient-to-tr from-rose-500/20 to-orange-500/20 border-primary/20 text-primary"
                             }`}>
-                              {user.name ? user.name[0].toUpperCase() : (user.email ? user.email[0].toUpperCase() : "U")}
+                              {mediaUrl(user.avatarUrl) ? (
+                                <img
+                                  src={mediaUrl(user.avatarUrl) as string}
+                                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                                  alt={user.name || "Member"}
+                                  className="h-full w-full object-cover rounded-full"
+                                />
+                              ) : (
+                                user.name ? user.name[0].toUpperCase() : (user.email ? user.email[0].toUpperCase() : "U")
+                              )}
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <p className="font-bold text-sm text-foreground">{user.name || "Anonymous Member"}</p>
                                 {user.role === "admin" && (
@@ -886,7 +872,7 @@ export default function Users() {
                                   </span>
                                 )}
                               </div>
-                              <p className="text-xs text-muted-foreground font-mono mt-0.5">{user.email || user.openId}</p>
+                              <p className="text-xs text-muted-foreground font-mono mt-0.5 break-all">{user.email || "—"}</p>
                             </div>
                           </div>
                         </TableCell>
@@ -1044,7 +1030,7 @@ export default function Users() {
           <DialogHeader>
             <DialogTitle className="text-lg font-bold flex items-center gap-2 text-rose-500">
               <Ban className="h-5 w-5" />
-              Reject Withdrawal #{selectedWithdrawalForReject?.id}
+              Reject Withdrawal <ShortId id={selectedWithdrawalForReject?.id} className="text-base font-normal text-muted-foreground" />
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
               Please enter the reason for rejecting this payout request of {selectedWithdrawalForReject?.amount} TND. The amount will be returned to the requester's available balance.
@@ -1092,7 +1078,7 @@ export default function Users() {
             <DialogHeader>
               <DialogTitle className="text-lg font-bold flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-amber-500" />
-                Staff Permissions: {permUser.name || permUser.email}
+                Staff Permissions: <span className="break-all">{permUser.name || permUser.email}</span>
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
                 As the Owner, configure which admin panel modules and features this team member can access and moderate.
@@ -1112,12 +1098,12 @@ export default function Users() {
                         : "bg-muted/30 border-border/40 text-muted-foreground hover:bg-muted/60"
                     }`}
                   >
-                    <div>
+                    <div className="min-w-0 pr-3">
                       <p className="text-xs font-bold text-foreground">{perm.label}</p>
                       <p className="text-[11px] text-muted-foreground">{perm.desc}</p>
                     </div>
                     <div
-                      className={`h-6 w-6 rounded-lg flex items-center justify-center border transition-all ${
+                      className={`h-6 w-6 shrink-0 rounded-lg flex items-center justify-center border transition-all ${
                         isSelected
                           ? "bg-primary border-primary text-white"
                           : "border-border/60 bg-background"
@@ -1163,7 +1149,7 @@ export default function Users() {
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
                 Grant or revoke developer privileges and assign a custom engineering title for{" "}
-                <strong className="text-foreground">{devUser.name || devUser.email}</strong>.
+                <strong className="text-foreground break-all">{devUser.name || devUser.email}</strong>.
               </DialogDescription>
             </DialogHeader>
 

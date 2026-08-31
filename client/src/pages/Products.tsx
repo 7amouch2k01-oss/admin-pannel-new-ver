@@ -20,9 +20,11 @@ import {
 } from "@/components/ui/dialog";
 import {
   Search, MoreHorizontal, Heart, Eye, EyeOff, Flag, Trash2, ImageIcon, DollarSign,
-  TrendingUp, Share2, Tag, ExternalLink, CheckCircle2, AlertTriangle, Layers
+  TrendingUp, MessageCircle, Tag, ExternalLink, CheckCircle2, AlertTriangle, Layers
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { ShortId } from "@/components/ShortId";
+import { mediaUrlOr, onImageError, POST_IMAGE_FALLBACK } from "@/lib/media";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -86,7 +88,6 @@ export default function Products() {
   const active = (posts as any[]).filter((p: any) => (p.status ?? "active") === "active").length;
   const flagged = (posts as any[]).filter((p: any) => p.status === "flagged").length;
   const totalLikes = (posts as any[]).reduce((acc, p) => acc + (p.likes || 0), 0);
-  const estimatedTaggedValue = (posts as any[]).reduce((acc, p) => acc + (p.taggedProduct?.price || 120), 0);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -189,7 +190,7 @@ export default function Products() {
                 <TableHead>Creator / Caption</TableHead>
                 <TableHead>Tagged Garment</TableHead>
                 <TableHead>Social Interactions</TableHead>
-                <TableHead>Est. Revenue</TableHead>
+                <TableHead>Revenue</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -216,10 +217,9 @@ export default function Products() {
               ) : (
                 filtered.map((post: any) => {
                   const likes = post.likes || 0;
-                  const shares = Math.floor(likes * 0.15);
-                  const price = post.taggedProduct?.price || 140;
-                  const estSales = Math.floor(likes * 0.08);
-                  const estRevenue = estSales * price;
+                  const comments = post.comments || 0;
+                  const revenue = post.totalMoneyGained || 0;
+                  const conversions = post.totalOrdersPassed || 0;
 
                   return (
                     <TableRow key={post.id} className="border-border/50 hover:bg-muted/30 transition cursor-pointer" onClick={() => setSelectedPost(post)}>
@@ -229,7 +229,8 @@ export default function Products() {
                           className="h-14 w-14 rounded-2xl overflow-hidden border border-border/60 hover:ring-2 hover:ring-primary/40 transition block"
                         >
                           <img
-                            src={post.image || "/product_dress_1.png"}
+                            src={mediaUrlOr(post.image, POST_IMAGE_FALLBACK)}
+                            onError={onImageError(POST_IMAGE_FALLBACK)}
                             alt="post look"
                             className="h-full w-full object-cover"
                           />
@@ -240,7 +241,7 @@ export default function Products() {
                           <p className="font-bold text-sm text-foreground">{post.author?.name || post.creator?.name || "Creator Look"}</p>
                           <p className="text-xs text-muted-foreground line-clamp-1">{post.caption || "No caption provided"}</p>
                           <span className="text-[10px] text-muted-foreground font-mono">
-                            {post.category || "Casual"} · {post.createdAt ? new Date(post.createdAt).toLocaleDateString() : "Live"}
+                            {post.category || "Uncategorised"} · {post.createdAt ? new Date(post.createdAt).toLocaleDateString() : "Live"}
                           </span>
                         </div>
                       </TableCell>
@@ -266,14 +267,17 @@ export default function Products() {
                             {likes}
                           </span>
                           <span className="flex items-center gap-1 text-muted-foreground">
-                            <Share2 size={13} />
-                            {shares}
+                            <MessageCircle size={13} />
+                            {comments}
                           </span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="font-mono text-xs font-bold text-emerald-500">
-                          +{estRevenue} TND
+                          {revenue > 0 ? `${revenue.toFixed(2)} TND` : <span className="text-muted-foreground font-normal">—</span>}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5">
+                          {conversions} {conversions === 1 ? "order" : "orders"}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -326,7 +330,8 @@ export default function Products() {
           <DialogContent className="max-w-3xl rounded-3xl p-6 max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-lg font-bold flex items-center justify-between">
-                <span>Post Details & Commerce Analytics #{selectedPost.id}</span>
+                <span className="min-w-0 truncate">Post Details &amp; Commerce Analytics</span>
+                <ShortId id={selectedPost.id} className="text-sm font-normal text-muted-foreground shrink-0" />
                 <StatusBadge status={selectedPost.status || "active"} />
               </DialogTitle>
             </DialogHeader>
@@ -335,7 +340,8 @@ export default function Products() {
               {/* Photo */}
               <div className="md:col-span-5 rounded-2xl overflow-hidden border border-border/50 max-h-[380px] bg-black/5 flex items-center justify-center">
                 <img
-                  src={selectedPost.image || "/product_dress_1.png"}
+                  src={mediaUrlOr(selectedPost.image, POST_IMAGE_FALLBACK)}
+                  onError={onImageError(POST_IMAGE_FALLBACK)}
                   alt="Post visual"
                   className="w-full h-full object-cover rounded-2xl"
                 />
@@ -371,18 +377,18 @@ export default function Products() {
                   </div>
                   <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20">
                     <p className="text-[10px] uppercase font-bold text-blue-500">Orders Converted</p>
-                    <p className="text-base font-black text-blue-500">{selectedPost.totalOrdersPassed ?? Math.floor((selectedPost.likes || 0) * 0.05)}</p>
+                    <p className="text-base font-black text-blue-500">{selectedPost.totalOrdersPassed ?? 0}</p>
                   </div>
                   <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                     <p className="text-[10px] uppercase font-bold text-emerald-500">Revenue Gained</p>
                     <p className="text-base font-black text-emerald-500">
-                      {(selectedPost.totalMoneyGained ?? 0).toLocaleString()} TND
+                      {(selectedPost.totalMoneyGained ?? 0).toFixed(2)} TND
                     </p>
                   </div>
                   <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
                     <p className="text-[10px] uppercase font-bold text-amber-500">Creator Commission</p>
                     <p className="text-base font-black text-amber-500">
-                      {((selectedPost.totalMoneyGained ?? 0) * 0.05).toFixed(1)} TND
+                      {(selectedPost.creatorCommission ?? 0).toFixed(2)} TND
                     </p>
                   </div>
                 </div>
@@ -391,19 +397,20 @@ export default function Products() {
                 <div className="space-y-2 pt-2">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1.5">
-                      <Tag className="h-3.5 w-3.5 text-primary" /> Items Added to Post for Sale ({selectedPost.itemsForSale?.length || 1})
+                      <Tag className="h-3.5 w-3.5 text-primary" /> Items Added to Post for Sale ({selectedPost.itemsForSale?.length ?? 0})
                     </p>
                   </div>
                   
                   <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    {(selectedPost.itemsForSale && selectedPost.itemsForSale.length > 0
-                      ? selectedPost.itemsForSale
-                      : [selectedPost.taggedProduct || { name: "Tagged Garment", price: 120, image: selectedPost.image }]
-                    ).map((item: any, idx: number) => (
+                    {(selectedPost.itemsForSale ?? []).length === 0 && (
+                      <p className="text-xs text-muted-foreground italic py-2">No items tagged on this post.</p>
+                    )}
+                    {(selectedPost.itemsForSale ?? []).map((item: any, idx: number) => (
                       <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border/40 hover:border-primary/20 transition-all">
                         <div className="flex items-center gap-3 min-w-0">
                           <img
-                            src={item.image || "/product_dress_1.png"}
+                            src={mediaUrlOr(item.image, POST_IMAGE_FALLBACK)}
+                            onError={onImageError(POST_IMAGE_FALLBACK)}
                             alt={item.name}
                             className="w-10 h-10 rounded-lg object-cover bg-black/5 shrink-0 border border-border/20"
                           />
@@ -457,7 +464,7 @@ export default function Products() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this outfit post?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete post #{postToDelete?.id} from the live feed and database.
+              This will permanently delete this post from the live feed and database.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex justify-end gap-3 mt-4">

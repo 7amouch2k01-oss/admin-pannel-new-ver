@@ -5,10 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
+import { ShortId, shortId } from "@/components/ShortId";
 import { toast } from "sonner";
 import {
   Search, Package, Truck, MapPin, RefreshCw, X, ChevronDown, ChevronRight,
-  Eye, Check, Clock, CheckCircle2, AlertCircle, Ban, Undo2, ArrowUpRight, DollarSign, ShieldCheck
+  Eye, Check, Clock, CheckCircle2, AlertCircle, Ban, Undo2, ArrowUpRight, DollarSign, ShieldCheck, ShoppingCart
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle
@@ -52,28 +53,29 @@ export default function Orders() {
   const [cancelReason, setCancelReason] = useState("");
 
   const filteredOrders = (orders as any[]).filter((o: any) => {
+    const q = search.toLowerCase();
     const matchSearch =
-      (o.customerName || "").toLowerCase().includes(search.toLowerCase()) ||
-      (o.customerEmail || "").toLowerCase().includes(search.toLowerCase()) ||
-      String(o.id).includes(search);
+      (o.customerName || "").toLowerCase().includes(q) ||
+      (o.customerEmail || "").toLowerCase().includes(q) ||
+      String(o.id).toLowerCase().includes(q);
     const matchStatus = statusFilter === "all" || o.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
-  const handleAdminApproveDelivery = async (shipmentId: number) => {
+  const handleAdminApproveDelivery = async (shipmentId: string) => {
     try {
       await updateShipmentMutation.mutateAsync({
         shipmentId,
         status: "delivered",
       });
       await refetch();
-      toast.success(`Shipment #${shipmentId} approved as Delivered to Customer! 🎉`);
+      toast.success(`Shipment #${shortId(shipmentId)} approved as Delivered to Customer! 🎉`);
     } catch (err: any) {
       toast.error(err.message || "Failed to update delivery");
     }
   };
 
-  const handleAdminProcessRefund = async (orderId: number) => {
+  const handleAdminProcessRefund = async (orderId: string) => {
     try {
       await updateOrderStatusMutation.mutateAsync({
         orderId,
@@ -81,13 +83,13 @@ export default function Orders() {
         notes: "Admin approved customer return & refund.",
       });
       await refetch();
-      toast.success(`Order #${orderId} marked as Refunded! 🔄`);
+      toast.success(`Order #${shortId(orderId)} marked as Refunded! 🔄`);
     } catch (err: any) {
       toast.error(err.message || "Failed to process refund");
     }
   };
 
-  const handleAdminRejectRefund = async (orderId: number) => {
+  const handleAdminRejectRefund = async (orderId: string) => {
     try {
       await updateOrderStatusMutation.mutateAsync({
         orderId,
@@ -95,7 +97,7 @@ export default function Orders() {
         notes: "Admin rejected refund claim. Kept as Delivered.",
       });
       await refetch();
-      toast.info(`Refund for Order #${orderId} declined. Order remains Delivered.`);
+      toast.info(`Refund for Order #${shortId(orderId)} declined. Order remains Delivered.`);
     } catch (err: any) {
       toast.error(err.message || "Failed to reject refund");
     }
@@ -109,7 +111,7 @@ export default function Orders() {
         reason: cancelReason || "Canceled by platform administration",
       });
       await refetch();
-      toast.success(`Order #${cancelModalOrder.id} canceled. Customer has been notified.`);
+      toast.success(`Order #${shortId(cancelModalOrder.id)} canceled. Customer has been notified.`);
       setCancelModalOrder(null);
       setCancelReason("");
     } catch (err: any) {
@@ -124,7 +126,9 @@ export default function Orders() {
   const refundRequestedCount = (orders as any[]).filter((o: any) => o.status === "refund_requested").length;
   const refundedOrders = (orders as any[]).filter((o: any) => o.status === "refunded").length;
   const canceledOrders = (orders as any[]).filter((o: any) => o.status === "canceled").length;
-  const totalGrossVolume = (orders as any[]).reduce((acc: number, o: any) => acc + (o.totalAmount || 0), 0);
+  const totalGrossVolume = (orders as any[])
+    .filter((o: any) => o.status !== "canceled")
+    .reduce((acc: number, o: any) => acc + (o.subtotal || 0), 0);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -259,14 +263,15 @@ export default function Orders() {
                 <CardHeader className="p-5 pb-3 border-b border-border/30 bg-muted/20">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className={`h-10 w-10 rounded-2xl flex items-center justify-center font-black text-sm ${
+                      <div className={`h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center ${
                         isCanceled ? "bg-rose-500/10 text-rose-500" : isRefunded ? "bg-purple-500/10 text-purple-500" : "bg-primary/10 text-primary"
                       }`}>
-                        #{order.id}
+                        <ShoppingCart size={16} />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-bold text-sm text-foreground">{order.customerName}</p>
+                          <p className="font-bold text-sm text-foreground truncate">{order.customerName}</p>
+                          <ShortId id={order.id} className="text-[11px] text-muted-foreground shrink-0" />
                           <Badge variant="outline" className={`font-bold ${orderCfg.cls}`}>
                             {orderCfg.label}
                           </Badge>
@@ -275,7 +280,7 @@ export default function Orders() {
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                          {order.customerEmail || "No email"} · {order.city || "Tunisia"} · Tel: {order.phone || "N/A"} · Placed: {new Date(order.createdAt).toLocaleDateString()} {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {order.customerEmail || "No email"} · {order.shippingAddress || "No address"} · Tel: {order.phone || "N/A"} · Placed: {new Date(order.createdAt).toLocaleDateString()} {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
                     </div>
@@ -283,7 +288,7 @@ export default function Orders() {
                     <div className="flex items-center gap-3 sm:ml-auto flex-wrap justify-end">
                       <div className="text-right mr-2">
                         <p className="text-[10px] text-muted-foreground uppercase font-bold">Total Bill</p>
-                        <p className="text-lg font-black text-foreground font-mono">{order.totalAmount} TND</p>
+                        <p className="text-lg font-black text-foreground font-mono">{(order.totalAmount ?? 0).toFixed(2)} TND</p>
                       </div>
 
                       {/* Admin Main Order Action Buttons */}
@@ -370,13 +375,16 @@ export default function Orders() {
                           className="p-4 rounded-2xl bg-muted/40 border border-border/40 space-y-3 flex flex-col justify-between"
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <div>
+                            <div className="min-w-0">
                               <p className="font-bold text-xs text-primary flex items-center gap-1.5">
-                                <Package size={13} />
-                                {shipment.brandName || `Brand #${shipment.brandId}`}
+                                <Package size={13} className="shrink-0" />
+                                <span className="truncate">{shipment.brandName}</span>
                               </p>
-                              <p className="text-[11px] text-muted-foreground mt-0.5">
-                                Shipment #{shipment.id} · {shipment.trackingNumber ? `Track: ${shipment.trackingNumber}` : "No tracking code"}
+                              <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                <ShortId id={shipment.id} />
+                                <span className="break-all">
+                                  {shipment.trackingNumber ? `· Track: ${shipment.trackingNumber}` : "· No tracking code"}
+                                </span>
                               </p>
                             </div>
                             <Badge variant="outline" className={`font-bold text-[10px] ${shipCfg.cls}`}>
@@ -439,7 +447,7 @@ export default function Orders() {
           <DialogHeader>
             <DialogTitle className="text-lg font-bold flex items-center gap-2 text-rose-500">
               <Ban className="h-5 w-5" />
-              Cancel Order #{cancelModalOrder?.id}
+              Cancel Order <ShortId id={cancelModalOrder?.id} className="text-base font-normal text-muted-foreground" />
             </DialogTitle>
           </DialogHeader>
           <p className="text-xs text-muted-foreground mt-1">
@@ -486,7 +494,7 @@ export default function Orders() {
           <DialogContent className="max-w-xl rounded-3xl p-6">
             <DialogHeader>
               <DialogTitle className="text-lg font-bold">
-                Order #{selectedOrder.id} Breakdown
+                Order <ShortId id={selectedOrder.id} className="text-base font-normal text-muted-foreground" /> Breakdown
               </DialogTitle>
             </DialogHeader>
 
@@ -501,7 +509,7 @@ export default function Orders() {
                 <div>
                   <p className="text-xs font-bold text-muted-foreground uppercase">Shipping Address</p>
                   <p className="text-xs text-foreground mt-0.5">{selectedOrder.shippingAddress || "Standard Address"}</p>
-                  <p className="text-xs text-muted-foreground">{selectedOrder.city}, {selectedOrder.country || "Tunisia"}</p>
+                  <p className="text-xs text-muted-foreground">{selectedOrder.shippingAddress || "—"}</p>
                   <p className="text-xs font-bold text-primary mt-1">Payment: {selectedOrder.paymentMethod?.toUpperCase()}</p>
                 </div>
               </div>
@@ -513,7 +521,7 @@ export default function Orders() {
                     <div key={s.id} className="p-3 rounded-xl bg-card border border-border/50 flex items-center justify-between">
                       <div>
                         <p className="font-bold text-xs">{s.brandName}</p>
-                        <p className="text-[10px] text-muted-foreground font-mono">Status: {s.status}</p>
+                        <p className="text-[10px] text-muted-foreground font-mono">Status: {SHIP_STATUS_CFG[s.status as keyof typeof SHIP_STATUS_CFG]?.label ?? s.status}</p>
                       </div>
                       <div className="flex gap-2">
                         {s.status !== "delivered" && s.status !== "canceled" && s.status !== "refunded" && (

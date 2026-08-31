@@ -4,11 +4,11 @@
 
 **Executive Management, Modular Role-Based Access Control, Financial Analytics, Brand Operations & Order Logistics for Styly.**
 
-[![Deployment Status](https://img.shields.io/badge/Deployment-Live%20on%20Railway-success?style=for-the-badge&logo=railway)](https://styly-admin-pannel-production.up.railway.app/)
+[![Deployment](https://img.shields.io/badge/Deployment-nginx%20on%20Styly%20VPS-success?style=for-the-badge&logo=nginx&logoColor=white)](https://admin.styly.tn)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React 19](https://img.shields.io/badge/React%2019-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
 [![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
-[![MongoDB](https://img.shields.io/badge/MongoDB%20Atlas-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 
 </div>
@@ -79,18 +79,25 @@ The **Styly Admin Console** is a specialized enterprise dashboard engineered to 
 
 ```mermaid
 graph TD
-    A[Admin React 19 SPA] -->|tRPC Batch Client| B[Express + Node.js API Server]
-    B -->|permissionProcedure Guard| C{RBAC Permission Check}
-    C -->|Authorized| D[(MongoDB Atlas Database)]
+    A[Admin React 19 SPA] -->|REST + Bearer JWT| B[Styly API - New_Styly_Back_end]
+    B -->|requireAdmin + requirePermission| C{RBAC Permission Check}
+    C -->|Authorized| D[(PostgreSQL via Prisma)]
     C -->|Denied| E[403 Forbidden Response]
-    B -->|Brevo HTTPS REST API| F[Transactional Mail System]
+    D --- F[Styly mobile app shares this database]
 ```
 
-* **Frontend**: React 19, TypeScript, Vite, Tailwind CSS v4, Radix UI / Shadcn, Lucide Icons, Recharts, Sonner.
-* **Backend**: Node.js, Express, tRPC v11, SuperJSON, Zod, BcryptJS.
-* **Database**: MongoDB Atlas with Mongoose ODM schemas.
-* **Transactional Email**: Brevo v3 HTTPS REST API (Port 443 compatible).
-* **Hosting**: Railway Cloud Platform with automatic CI/CD deployment.
+This console has **no backend of its own**. It is a static SPA that talks to the
+same Styly API the mobile app uses, over `/api/admin/*` — a set of admin-only
+routes guarded by `requireAdmin` plus a per-module permission check. It used to
+ship a co-located tRPC + MongoDB server; that was removed and the console
+rewired to the real backend, so there is now a single source of truth for users,
+posts, orders, brands and commissions.
+
+* **Frontend**: React 19, TypeScript, Vite, Tailwind CSS v4, Radix UI / Shadcn, Lucide Icons, Recharts, Sonner, TanStack Query.
+* **Backend**: the Styly API (Node.js, Express, Prisma) — a separate repository.
+* **Database**: PostgreSQL, shared with the Styly mobile app.
+* **Auth**: JWT access token (`Authorization: Bearer`) + rotating refresh token.
+* **Hosting**: static build served by nginx on the Styly VPS, same-origin with the API; deployed by GitHub Actions on push to `main` (see `.github/DEPLOYMENT.md`).
 
 ---
 
@@ -108,14 +115,13 @@ styly-admin-pannel/
 │   ├── admin.html          # Admin Console HTML Entry
 │   └── index.html          # Consumer App HTML Entry
 │
-├── 📂 server/              # Backend Node.js & Express API
-│   ├── _core/              # Server initialization, tRPC context, modular permission middleware
-│   ├── db.ts               # Core database functions & user updates
-│   ├── email.ts            # Brevo HTTPS transactional email provider
-│   ├── mongodb.ts          # Mongoose document schemas & models
-│   └── routers.ts          # tRPC procedures with RBAC & modular permission gates
-│
-└── 📂 shared/              # Shared TypeScript contracts, constants & error codes
+└── 📂 client/src/lib/api/  # Data layer — the only place that knows about HTTP
+    ├── index.ts            # Call surface used by the pages (api.users.list.useQuery(), …)
+    ├── core.ts             # useQuery/useMutation/useUtils primitives over TanStack Query
+    ├── endpoints.ts        # One function per procedure -> REST route
+    ├── http.ts             # Bearer header, envelope unwrapping, refresh-and-retry
+    ├── auth-store.ts       # Token storage + cross-tab sync
+    └── errors.ts           # Error normalisation (the API has several error shapes)
 ```
 
 ---
@@ -123,9 +129,9 @@ styly-admin-pannel/
 ## 🚀 Getting Started
 
 ### Prerequisites
-* **Node.js**: v18.0.0 or higher
+* **Node.js**: v20.19.0 or higher
 * **pnpm**: v9.0.0 or higher
-* **MongoDB**: Atlas connection URI
+* **The Styly API**: running locally (default `http://127.0.0.1:4000`)
 
 ### Installation & Local Setup
 
@@ -134,35 +140,44 @@ styly-admin-pannel/
    git clone https://github.com/7amouch2k01-oss/styly-panel.git
    cd styly-panel
    ```
+   You will also need the Styly API running locally — the console has no backend
+   of its own.
 
 2. **Install dependencies**:
    ```bash
    pnpm install
    ```
 
-3. **Configure Environment Variables**:
-   Create a `.env` file in the root directory:
+3. **Point it at the Styly API**:
+   In development, Vite proxies `/api` to `http://127.0.0.1:4000` — start the
+   Styly backend first and nothing else is needed. To target a different host:
    ```env
-   NODE_ENV=development
-   PORT=3000
-   MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/styly?retryWrites=true&w=majority
-   BREVO_API_KEY=xkeysib-your-brevo-api-key
-   SESSION_SECRET=your-secure-random-session-secret
+   # .env — dev only; overrides the proxy target
+   VITE_API_PROXY_TARGET=http://127.0.0.1:4000
+   # production builds call the API directly, so set an absolute URL
+   VITE_API_BASE_URL=https://api.your-domain.tld
    ```
+   When deploying, add this console's origin to the API's `CORS_ORIGIN` list.
 
-4. **Start the Development Server**:
+4. **Grant yourself access** (in the backend repository):
+   ```bash
+   node scripts/make-admin.js you@example.com --owner
+   ```
+   The account must already exist. `--owner` bypasses every module check and
+   cannot be demoted or deactivated from the console.
+
+5. **Start the Development Server**:
    ```bash
    pnpm dev
    ```
-   * Consumer App: `http://localhost:3000/`
-   * Admin Portal: `http://localhost:3000/admin`
+   * Admin Portal: `http://localhost:3001/admin`
 
-5. **Type Check**:
+6. **Type Check**:
    ```bash
    pnpm check
    ```
 
-6. **Build for Production**:
+7. **Build for Production**:
    ```bash
    pnpm build
    ```
@@ -171,10 +186,11 @@ styly-admin-pannel/
 
 ## 🔒 Security & Best Practices
 
-* **Role-Based Procedure Gating**: Protected administrative procedures verify root permissions before executing mutations.
-* **Encrypted Credentials**: Passwords are saved using multi-round salt hashing (Bcrypt).
-* **Safe Email Dispatch**: All transactional emails (password reset, verification) communicate through authenticated REST endpoints over HTTPS Port 443 to eliminate SMTP blocking risks.
-* **End-to-End Type Safety**: Input arguments are strictly validated with Zod schemas on every tRPC procedure call.
+* **Server-Side Authorization**: every `/api/admin/*` route is gated by `requireAdmin` plus a per-module permission check. The UI's own checks are cosmetic — the server is the authority.
+* **Owner Protection**: the platform owner cannot be demoted or deactivated, so the console can never be locked out of its own permission tree.
+* **Encrypted Credentials**: passwords are hashed with bcrypt (cost 12) by the API.
+* **Token Handling**: short-lived access token with a rotating refresh token; refreshes are single-flight and shared across tabs so a rotation cannot revoke a sibling tab's session.
+* **Audit Trail**: every admin mutation writes an `ActivityLog` row (who, what, when), surfaced in the Overview activity stream.
 
 ---
 

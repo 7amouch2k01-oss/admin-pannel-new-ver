@@ -216,7 +216,7 @@ function DashboardLayoutContent({
                 .filter(item => {
                   // Owner or root admin (or user without restricted permissions) can see everything
                   const currentUser = user as any;
-                  if (!currentUser || currentUser.isOwner || currentUser.id === 1) return true;
+                  if (!currentUser || currentUser.isOwner) return true;
                   const perms: string[] = currentUser.permissions || ["dashboard", "users", "products", "orders", "analytics", "brands", "settings"];
                   return perms.includes(item.perm);
                 })

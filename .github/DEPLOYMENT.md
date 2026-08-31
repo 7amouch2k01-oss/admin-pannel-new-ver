@@ -1,200 +1,118 @@
-# Deployment Guide
+# Deploying the Styly Admin Console
 
-## GitHub Actions Workflows
+The console is a **static Vite SPA**. It has no server of its own — it is served by nginx on
+the same VPS as the Styly API, at `https://admin.styly.tn`, and nginx proxies `/api` and
+`/files` through to the API so the browser sees a single origin.
 
-This repository includes three automated workflows:
-
-### 1. CI Workflow (`.github/workflows/ci.yml`)
-**Trigger:** Push to `main`/`develop` or Pull Requests
-
-**Steps:**
-- Install dependencies with pnpm
-- Run TypeScript type checking (`pnpm check`)
-- Run tests (`pnpm test`)
-- Build the project (`pnpm build`)
-- Upload build artifacts to GitHub
-
-**Status:** ✅ Automatically configured and ready
-
-### 2. Deployment Workflow (`.github/workflows/deploy.yml`)
-**Trigger:** Push to `main` branch or manual workflow dispatch
-
-**Steps:**
-- Install dependencies
-- Build project with environment variables
-- Deploy to your target platform
-- Notify deployment status
-
-**Setup Required:**
-1. Configure deployment target (see options below)
-2. Add required secrets to GitHub
-
-### 3. Code Quality Workflow (`.github/workflows/code-quality.yml`)
-**Trigger:** Push to `main`/`develop` or Pull Requests
-
-**Steps:**
-- Check code formatting with Prettier
-
-**Status:** ✅ Automatically configured and ready
+That same-origin arrangement is load-bearing: it is why the build ships **no `VITE_API_BASE_URL`**,
+why the stored `/files/<uuid>` media paths work as relative URLs, and why the API needs no
+`CORS_ORIGIN` entry for this console.
 
 ---
 
-## Environment Setup
+## Pipeline
 
-### Add Secrets to GitHub
-
-Go to: **Settings → Secrets and variables → Actions** and add these secrets:
+`.github/workflows/deploy.yml` — triggered by a push to `main`, or manually via
+**Actions → Deploy Admin Console → Run workflow**.
 
 ```
-VITE_APP_ID              # Manus OAuth application ID
-VITE_OAUTH_PORTAL_URL    # Manus login portal URL
-VITE_FRONTEND_FORGE_API_URL    # Manus built-in APIs URL
-VITE_FRONTEND_FORGE_API_KEY    # Bearer token for frontend APIs
-DATABASE_URL             # MySQL/TiDB connection string (for deploy)
-JWT_SECRET               # Session cookie signing secret (for deploy)
-OAUTH_SERVER_URL         # Manus OAuth backend URL (for deploy)
-BUILT_IN_FORGE_API_URL   # Manus built-in APIs server-side URL (for deploy)
-BUILT_IN_FORGE_API_KEY   # Bearer token for server-side APIs (for deploy)
-DEPLOY_TOKEN             # Your deployment platform token
+push to main
+  → pnpm install --frozen-lockfile
+  → pnpm build                      ← the gate: a failed build never reaches the server
+  → scp dist/public → /tmp/admin-<sha>
+  → ssh: mv into $WEB_ROOT/releases/<sha>, flip the `current` symlink, prune to 5 releases
+  → smoke test against https://admin.styly.tn
 ```
 
-### Create Production Environment
+It mirrors the backend's pipeline (`Wrapped-Tn/stylyServer`) — same `appleboy/scp-action` and
+`appleboy/ssh-action`, same `deploy` Environment convention — with one structural difference:
+the backend has the *server* pull the code and build in place, which suits a Node service. A
+static site is built on the runner and only the artifact is shipped, so the box needs no Node,
+no pnpm and no PM2.
 
-1. Go to **Settings → Environments**
-2. Click **New environment** and name it `production`
-3. (Optional) Set deployment branch rules to `main` only
-4. Add any environment-specific secrets
+### Secrets
+
+Repo → **Settings → Environments → New environment → `deploy`**, then add:
+
+| Secret | Value |
+|---|---|
+| `SERVER_HOST` | same as the backend repo's |
+| `SERVER_USER` | same as the backend repo's |
+| `SERVER_SSH_KEY` | same as the backend repo's (private key) |
+| `SERVER_PORT` | same as the backend repo's |
+| `WEB_ROOT` | `/var/www/styly/admin` |
+| `SITE_URL` | *optional* — smoke-test target, defaults to `https://admin.styly.tn` |
+
+There are no application secrets: a static SPA has none to keep.
 
 ---
 
-## Deployment Options
+## One-time server setup
 
-### Option A: Deploy to Vercel
-
-1. Install Vercel CLI: `npm i -g vercel`
-2. Add deployment step to `deploy.yml`:
-
-```yaml
-    - name: Deploy to Vercel
-      run: vercel --prod
-      env:
-        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-```
-
-### Option B: Deploy to Railway
-
-1. Get Railway API token
-2. Update `deploy.yml`:
-
-```yaml
-    - name: Deploy to Railway
-      uses: raildotdev/deploy-action@main
-      with:
-        token: ${{ secrets.RAILWAY_TOKEN }}
-        service: styly-panel
-```
-
-### Option C: Deploy to Docker (Self-hosted)
-
-1. Create `Dockerfile`:
-
-```dockerfile
-FROM node:20-alpine
-WORKDIR /app
-COPY . .
-RUN npm install -g pnpm && pnpm install --frozen-lockfile
-RUN pnpm build
-EXPOSE 3000
-CMD ["pnpm", "start"]
-```
-
-2. Update `deploy.yml` to build and push Docker image:
-
-```yaml
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        push: true
-        tags: your-registry/styly-panel:latest
-        registry: ${{ secrets.DOCKER_REGISTRY }}
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-```
-
-### Option D: Deploy to GitHub Pages (Frontend only)
-
-For static frontend deployment:
-
-```yaml
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./dist
-```
-
----
-
-## Monitoring & Debugging
-
-### View Workflow Runs
-- Go to **Actions** tab in your repository
-- Click on a workflow to see detailed logs
-- Check individual step outputs for errors
-
-### Common Issues
-
-**1. Build fails with missing env vars**
-- Add missing secrets to GitHub Settings → Secrets
-- Ensure secret names match the env vars in workflows
-
-**2. Database migration fails**
-- Ensure `DATABASE_URL` is correctly configured
-- Run `pnpm db:push` locally first to test migrations
-
-**3. Tests fail in CI but pass locally**
-- Check for environment-specific issues
-- Verify all dependencies are in `package.json`
-- Check for hardcoded paths or local-only configs
-
----
-
-## Local Testing
-
-Test the build locally before pushing:
+Required **before** the first deploy — otherwise the workflow goes green while the site 404s.
 
 ```bash
-# Install dependencies
-pnpm install
+# 1. DNS: an A record for admin.styly.tn pointing at the VPS.
 
-# Run type checks
-pnpm check
+# 2. Directory, owned by the deploy user
+sudo mkdir -p /var/www/styly/admin/releases
+sudo chown -R "$USER":"$USER" /var/www/styly/admin
 
-# Run tests
-pnpm test
+# 3. nginx site + certificate
+sudo cp deploy/nginx/admin.styly.tn.conf /etc/nginx/sites-available/admin.styly.tn
+sudo ln -s /etc/nginx/sites-available/admin.styly.tn /etc/nginx/sites-enabled/
+sudo certbot --nginx -d admin.styly.tn
+sudo nginx -t && sudo systemctl reload nginx
+```
 
-# Build
-pnpm build
+Check that the `proxy_pass` port in the nginx config matches the backend's `PORT` secret.
 
-# Run the built app
-pnpm start
+---
+
+## Releases and rollback
+
+Each deploy lands in its own directory and `current` is flipped atomically, so no visitor ever
+sees a half-copied release:
+
+```
+/var/www/styly/admin/
+├── current -> releases/<sha>
+└── releases/
+    ├── <sha>/     ← last 5 kept
+    └── ...
+```
+
+**Rollback** is a symlink flip — no rebuild, no pipeline run:
+
+```bash
+cd /var/www/styly/admin
+ls -1dt releases/*/                     # newest first
+ln -sfn "$PWD/releases/<previous-sha>" current.tmp && mv -Tf current.tmp current
 ```
 
 ---
 
-## Next Steps
+## Local development
 
-1. ✅ Choose your deployment platform (Vercel, Railway, Docker, etc.)
-2. ✅ Add required secrets to GitHub
-3. ✅ Update `deploy.yml` with your deployment target
-4. ✅ Create a pull request and merge to trigger workflows
-5. ✅ Monitor the Actions tab for build/deployment status
+```bash
+pnpm install
+pnpm dev      # http://localhost:3000, proxies /api and /files to 127.0.0.1:4000
+```
+
+Start the Styly API first. To point the dev proxy elsewhere, set `VITE_API_PROXY_TARGET`.
+
+Node version is pinned in `.nvmrc` (`nvm use`), and CI reads the same file, so local and CI
+cannot drift.
 
 ---
 
-## Resources
+## Troubleshooting
 
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [pnpm Installation](https://pnpm.io/installation)
-- [Manus Platform Docs](https://manus.ai)
+| Symptom | Cause |
+|---|---|
+| Deploy green, site 404 | Server setup above not done, or `WEB_ROOT` doesn't match the nginx `root` |
+| Deep link 404s, `/` works | `try_files ... /index.html` missing from the nginx `location /` |
+| Blank page, console "Unexpected token '<'" | An asset request fell through to the SPA fallback — check `location /assets/` has `try_files $uri =404` |
+| Stale UI after a deploy | `index.html` is being cached — it must respond `no-store` |
+| Login works, then every call 401s | API unreachable through `/api` — check the proxy and the upstream port |
+| Images broken | `/files/` proxy missing; see `client/src/lib/media.ts` for how media URLs are resolved |

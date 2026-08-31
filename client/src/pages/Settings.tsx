@@ -7,7 +7,6 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { LogOut, Save, ShieldCheck, Mail, Bell, Key, Database, RefreshCw, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { trpc } from "@/lib/trpc";
 
 export default function Settings() {
   const { user, logout } = useAuth();
@@ -25,7 +24,6 @@ export default function Settings() {
     maintenanceMode: false,
   });
 
-  const utils = trpc.useUtils();
 
   const handleSaveProfile = async () => {
     setIsSaving(true);

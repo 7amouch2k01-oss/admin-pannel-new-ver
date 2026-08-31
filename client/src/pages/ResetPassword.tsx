@@ -6,19 +6,18 @@ import { Lock, CheckCircle2, ArrowLeft, KeyRound } from "lucide-react";
 
 export default function ResetPassword() {
   const [, setLocation] = useLocation();
-  const [token, setToken] = useState("");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const tok = params.get("token");
-    if (tok) {
-      setToken(tok);
-    } else {
-      toast.error("Invalid reset link. No token provided.");
-    }
+    const emailParam = params.get("email");
+    const codeParam = params.get("code") ?? params.get("token");
+    if (emailParam) setEmail(emailParam);
+    if (codeParam) setCode(codeParam);
   }, []);
 
   const resetPasswordMutation = trpc.auth.resetPassword.useMutation({
@@ -33,8 +32,12 @@ export default function ResetPassword() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token) {
-      toast.error("Missing password reset token");
+    if (!email) {
+      toast.error("Please enter the email address you requested the reset for");
+      return;
+    }
+    if (!code) {
+      toast.error("Please enter the reset code from your email");
       return;
     }
     if (newPassword.length < 6) {
@@ -45,7 +48,7 @@ export default function ResetPassword() {
       toast.error("Passwords do not match");
       return;
     }
-    resetPasswordMutation.mutate({ token, newPassword });
+    resetPasswordMutation.mutate({ email, code, newPassword });
   };
 
   return (
@@ -61,7 +64,7 @@ export default function ResetPassword() {
           </div>
           <h1 className="text-2xl font-black tracking-tight text-foreground">Set New Password</h1>
           <p className="text-xs text-muted-foreground">
-            Enter your new password below to regain access to your Styly account.
+            Enter the code we emailed you along with your new password.
           </p>
         </div>
 
@@ -81,6 +84,37 @@ export default function ResetPassword() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="text-xs font-bold mb-1.5 block text-foreground/80">Email Address</label>
+              <div className="relative">
+                <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full h-11 pl-10 pr-4 rounded-xl bg-muted/50 border border-border/40 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold mb-1.5 block text-foreground/80">Reset Code</label>
+              <div className="relative">
+                <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Code from your email"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.trim())}
+                  required
+                  className="w-full h-11 pl-10 pr-4 rounded-xl bg-muted/50 border border-border/40 text-sm font-semibold tracking-widest focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                />
+              </div>
+            </div>
+
             <div>
               <label className="text-xs font-bold mb-1.5 block text-foreground/80">New Password</label>
               <div className="relative">
@@ -113,7 +147,7 @@ export default function ResetPassword() {
 
             <button
               type="submit"
-              disabled={resetPasswordMutation.isPending || !token}
+              disabled={resetPasswordMutation.isPending}
               className="w-full h-11 rounded-2xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {resetPasswordMutation.isPending ? "Updating Password…" : "Reset Password"}
