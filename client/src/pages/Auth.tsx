@@ -12,6 +12,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Mail, Lock, User, Shield, Sparkles, LogIn, UserPlus, Sun, Moon } from "lucide-react";
 
+// Self-registration is intentionally hidden: this console is staff-only. Accounts
+// are created by an admin (Users → Add Admin Member), or — for the very first one
+// on a fresh database — by `node scripts/make-admin.js <email> --create --owner`
+// on the server. Set this to true to bring the Register tab back.
+//
+// This is a UI decision, not a security control: POST /api/auth/register stays
+// open because the mobile app needs it.
+const SIGNUP_ENABLED = false;
+
 export default function Auth() {
   const [, setLocation] = useLocation();
   const { user, loading, refresh, logout } = useAuth();
@@ -162,16 +171,18 @@ export default function Auth() {
         {/* Card Component */}
         <Card className="border-neutral-200 dark:border-neutral-800 bg-white/70 dark:bg-neutral-900/60 backdrop-blur-xl shadow-xl dark:shadow-2xl dark:shadow-black/60 relative overflow-hidden transition-colors duration-300">
           <Tabs defaultValue="signin" className="w-full">
+            {SIGNUP_ENABLED && (
             <div className="px-6 pt-6 border-b border-neutral-100 dark:border-neutral-800/80 pb-4">
-              <TabsList className="grid w-full grid-cols-2 bg-neutral-100/80 dark:bg-neutral-950/80 p-1 border border-neutral-200/50 dark:border-neutral-800/50 rounded-lg transition-colors duration-300">
+              <TabsList className={`grid w-full ${SIGNUP_ENABLED ? "grid-cols-2" : "grid-cols-1"} bg-neutral-100/80 dark:bg-neutral-950/80 p-1 border border-neutral-200/50 dark:border-neutral-800/50 rounded-lg transition-colors duration-300`}>
                 <TabsTrigger value="signin" className="text-sm font-medium rounded-md py-1.5 text-neutral-600 dark:text-neutral-400 data-[state=active]:bg-white data-[state=active]:text-neutral-900 data-[state=active]:shadow-sm dark:data-[state=active]:bg-neutral-800 dark:data-[state=active]:text-white">
                   Sign In
                 </TabsTrigger>
-                <TabsTrigger value="signup" className="text-sm font-medium rounded-md py-1.5 text-neutral-600 dark:text-neutral-400 data-[state=active]:bg-white data-[state=active]:text-neutral-900 data-[state=active]:shadow-sm dark:data-[state=active]:bg-neutral-800 dark:data-[state=active]:text-white">
-                  Register
-                </TabsTrigger>
+                  <TabsTrigger value="signup" className="text-sm font-medium rounded-md py-1.5 text-neutral-600 dark:text-neutral-400 data-[state=active]:bg-white data-[state=active]:text-neutral-900 data-[state=active]:shadow-sm dark:data-[state=active]:bg-neutral-800 dark:data-[state=active]:text-white">
+                    Register
+                  </TabsTrigger>
               </TabsList>
             </div>
+            )}
 
             {/* TAB: SIGN IN */}
             <TabsContent value="signin">
@@ -245,7 +256,8 @@ export default function Auth() {
               </form>
             </TabsContent>
 
-            {/* TAB: SIGN UP */}
+            {/* TAB: SIGN UP — hidden unless SIGNUP_ENABLED (see top of file) */}
+            {SIGNUP_ENABLED && (
             <TabsContent value="signup">
               <form onSubmit={handleSignUp}>
                 <CardHeader className="space-y-1.5">
@@ -351,6 +363,7 @@ export default function Auth() {
                 </CardFooter>
               </form>
             </TabsContent>
+            )}
           </Tabs>
         </Card>
       </div>
