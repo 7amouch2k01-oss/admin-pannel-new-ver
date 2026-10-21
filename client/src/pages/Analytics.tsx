@@ -10,13 +10,14 @@ import { Badge } from "@/components/ui/badge";
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine,
+  ComposedChart,
 } from "recharts";
 import { trpc } from "@/lib/trpc";
 import type { AdminWithdrawal } from "@/lib/api/types";
 import {
   DollarSign, TrendingUp, TrendingDown, Undo2, BadgePercent, Sparkles,
   Users, ShoppingBag, ArrowDownCircle, ArrowUpCircle, Clock, CheckCircle2,
-  XCircle, AlertCircle, BarChart3, FlaskConical,
+  XCircle, AlertCircle, BarChart3, FlaskConical, ArrowUpRight, Activity,
 } from "lucide-react";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -51,37 +52,70 @@ const STATUS_ICONS: Record<AdminWithdrawal["status"], React.ReactNode> = {
   rejected:  <XCircle size={12} className="text-rose-500" />,
 };
 
+// ─── crypto custom tooltip ───────────────────────────────────────────────────
+
+function CryptoChartTooltip({ active, payload, label, unit = "TND" }: any) {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <div className="rounded-2xl border border-border/80 bg-background/95 backdrop-blur-xl p-3 shadow-2xl text-xs space-y-2 min-w-[190px] pointer-events-none">
+      <div className="flex items-center justify-between border-b border-border/40 pb-1.5 font-mono text-[11px] text-muted-foreground">
+        <span className="font-semibold text-foreground">{label} 2026</span>
+        <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-medium bg-emerald-500/10 px-1.5 py-0.5 rounded-full border border-emerald-500/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          Live Ledger
+        </span>
+      </div>
+      <div className="space-y-1">
+        {payload.map((item: any) => {
+          if (!item.value && item.value !== 0) return null;
+          const isCurrency = unit === "TND" && (item.dataKey === "revenue" || item.dataKey === "netRevenue" || item.dataKey === "refunds");
+          return (
+            <div key={item.dataKey || item.name} className="flex items-center justify-between gap-3 font-mono text-xs">
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color || item.fill }} />
+                <span className="truncate max-w-[110px]">{item.name}</span>
+              </div>
+              <span className="font-bold text-foreground">
+                {isCurrency ? `${fmt(Number(item.value))} TND` : Number(item.value).toLocaleString()}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── demo / preview data ─────────────────────────────────────────────────────
-// Injected only when the "Demo Mode" toggle is ON. Toggling it off reverts
-// every number and chart back to whatever the live API returned.
+// Realistic financial market distribution with organic spikes, pullbacks, and S-curve adoption
 
 const DEMO_FINANCIAL = {
-  grossRevenue:         184_320.50,
-  totalRefunds:           5_210.75,
-  refundsCount:              47,
-  pendingRefunds:          890.00,
-  pendingRefundsCount:        9,
-  commissionsPaid:        22_180.30,
-  commissionsPending:      3_410.00,
-  netGain:              156_929.45,
+  grossRevenue:         213_200.00,
+  totalRefunds:           6_810.00,
+  refundsCount:              52,
+  pendingRefunds:          980.00,
+  pendingRefundsCount:        8,
+  commissionsPaid:        25_480.00,
+  commissionsPending:      3_820.00,
+  netGain:              180_910.00,
 };
 
 const DEMO_MONTHLY = [
-  { month: "Nov", revenue: 9_800,  refunds: 320,  netRevenue: 9_480,  orders: 74,  users: 810,  newUsers: 62 },
-  { month: "Dec", revenue: 14_200, refunds: 510,  netRevenue: 13_690, orders: 109, users: 884,  newUsers: 74 },
-  { month: "Jan", revenue: 11_500, refunds: 290,  netRevenue: 11_210, orders: 88,  users: 960,  newUsers: 76 },
-  { month: "Feb", revenue: 13_700, refunds: 430,  netRevenue: 13_270, orders: 105, users: 1_038, newUsers: 78 },
-  { month: "Mar", revenue: 16_400, refunds: 580,  netRevenue: 15_820, orders: 126, users: 1_120, newUsers: 82 },
-  { month: "Apr", revenue: 18_900, refunds: 640,  netRevenue: 18_260, orders: 145, users: 1_213, newUsers: 93 },
-  { month: "May", revenue: 15_300, refunds: 410,  netRevenue: 14_890, orders: 117, users: 1_298, newUsers: 85 },
-  { month: "Jun", revenue: 19_800, refunds: 720,  netRevenue: 19_080, orders: 152, users: 1_392, newUsers: 94 },
-  { month: "Jul", revenue: 22_100, refunds: 810,  netRevenue: 21_290, orders: 170, users: 1_489, newUsers: 97 },
-  { month: "Aug", revenue: 20_400, refunds: 690,  netRevenue: 19_710, orders: 157, users: 1_578, newUsers: 89 },
-  { month: "Sep", revenue: 17_820, refunds: 490,  netRevenue: 17_330, orders: 137, users: 1_660, newUsers: 82 },
-  { month: "Oct", revenue: 24_400, refunds: 920,  netRevenue: 23_480, orders: 188, users: 1_766, newUsers: 106 },
+  { month: "Nov", revenue: 9_850,  refunds: 320,  netRevenue: 9_530,  orders: 76,  users: 820,   newUsers: 65 },
+  { month: "Dec", revenue: 15_400, refunds: 510,  netRevenue: 14_890, orders: 118, users: 995,   newUsers: 175 },
+  { month: "Jan", revenue: 11_200, refunds: 290,  netRevenue: 10_910, orders: 86,  users: 1_085, newUsers: 90 },
+  { month: "Feb", revenue: 14_150, refunds: 430,  netRevenue: 13_720, orders: 108, users: 1_195, newUsers: 110 },
+  { month: "Mar", revenue: 17_200, refunds: 580,  netRevenue: 16_620, orders: 132, users: 1_360, newUsers: 165 },
+  { month: "Apr", revenue: 19_850, refunds: 640,  netRevenue: 19_210, orders: 154, users: 1_570, newUsers: 210 },
+  { month: "May", revenue: 16_100, refunds: 410,  netRevenue: 15_690, orders: 122, users: 1_690, newUsers: 120 },
+  { month: "Jun", revenue: 20_400, refunds: 720,  netRevenue: 19_680, orders: 158, users: 1_880, newUsers: 190 },
+  { month: "Jul", revenue: 23_200, refunds: 810,  netRevenue: 22_390, orders: 179, users: 2_130, newUsers: 250 },
+  { month: "Aug", revenue: 21_350, refunds: 690,  netRevenue: 20_660, orders: 164, users: 2_290, newUsers: 160 },
+  { month: "Sep", revenue: 18_900, refunds: 490,  netRevenue: 18_410, orders: 146, users: 2_475, newUsers: 185 },
+  { month: "Oct", revenue: 25_600, refunds: 920,  netRevenue: 24_680, orders: 198, users: 2_780, newUsers: 305 },
 ];
 
-const DEMO_METRICS = { totalUsers: 1_766, totalOrders: 1_568, totalPosts: 312, totalBrands: 48, totalRevenue: 184_320.50 };
+const DEMO_METRICS = { totalUsers: 2_780, totalOrders: 1_641, totalPosts: 412, totalBrands: 54, totalRevenue: 213_200.00 };
 
 const DEMO_WITHDRAWALS: AdminWithdrawal[] = [
   { id: "d1",  userId: "u1",  brandId: null, type: "user",  requesterName: "Sarra Ben Ali",    requesterEmail: "sarra@styly.tn",     amount: 420.00,   paymentMethod: "D17",           status: "completed", paymentDetails: {}, adminNotes: null, rejectionReason: null,              createdAt: "2026-10-15T10:00:00Z" },
@@ -191,6 +225,8 @@ type CommissionView = "user" | "brand";
 export default function Analytics() {
   const [commissionView, setCommissionView] = useState<CommissionView>("user");
   const [demoMode, setDemoMode] = useState(false);
+  const [revenueChartMode, setRevenueChartMode] = useState<"all" | "gross" | "net">("all");
+  const [userChartMode, setUserChartMode] = useState<"both" | "cumulative" | "inflow">("both");
 
   const { data: fullAnalytics = [], isLoading: fullLoading } = trpc.analytics.full.useQuery();
   const { data: financial, isLoading: financeLoading } = trpc.analytics.financialSummary.useQuery();
@@ -206,6 +242,28 @@ export default function Analytics() {
   const activeMonthly     = demoMode ? DEMO_MONTHLY     : fullAnalytics;
   const activeWithdrawals = demoMode ? DEMO_WITHDRAWALS : withdrawals;
   const activeDashMetrics = demoMode ? DEMO_METRICS     : dashMetrics;
+
+  // ── dynamic ticker metrics for the crypto charts ──────────────────────────
+  const latestPoint = activeMonthly[activeMonthly.length - 1] ?? {
+    revenue: 0, netRevenue: 0, refunds: 0, orders: 0, users: 0, newUsers: 0, month: "—",
+  };
+  const prevPoint = activeMonthly.length >= 2 ? activeMonthly[activeMonthly.length - 2] : null;
+
+  const revGrowthPct = prevPoint && prevPoint.revenue > 0
+    ? ((latestPoint.revenue - prevPoint.revenue) / prevPoint.revenue) * 100
+    : 0;
+  const athRevenue = useMemo(
+    () => Math.max(...activeMonthly.map((m) => m.revenue), 0),
+    [activeMonthly]
+  );
+  const atlRevenue = useMemo(
+    () => Math.min(...activeMonthly.map((m) => m.revenue).filter((v) => v > 0), 0),
+    [activeMonthly]
+  );
+
+  const usersGrowthPct = prevPoint && prevPoint.users > 0
+    ? ((latestPoint.users - prevPoint.users) / prevPoint.users) * 100
+    : 0;
 
   // ── commission split from withdrawals ─────────────────────────────────────
   const commStats = useMemo(() => {
@@ -428,56 +486,309 @@ export default function Analytics() {
         </Card>
       </div>
 
-      {/* ── Charts Row 1: Revenue & User Growth ───────────────────────────── */}
+      {/* ── Charts Row 1: Crypto-Style Trading Curves ─────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border-border/50 bg-card/50 backdrop-blur rounded-3xl">
-          <CardHeader>
-            <CardTitle className="text-base font-bold">Monthly Sales &amp; Net Revenue</CardTitle>
-            <CardDescription className="text-xs">
-              Gross checkouts vs refunds vs net retained volume (TND) — 12-month rolling
-            </CardDescription>
+        {/* Crypto Chart 1: Monthly Sales & Market Flow */}
+        <Card className="border border-border/60 bg-gradient-to-b from-card/80 via-card/50 to-card/30 backdrop-blur-xl rounded-3xl overflow-hidden shadow-xl">
+          <CardHeader className="pb-3 border-b border-border/30">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-2 w-2 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  </span>
+                  <CardTitle className="text-sm font-bold tracking-tight">Market Flow &amp; Sales Curve</CardTitle>
+                  <span className="text-[10px] font-mono text-muted-foreground uppercase px-1.5 py-0.5 rounded bg-muted/60 border border-border/40">
+                    Live Ledger
+                  </span>
+                </div>
+                <CardDescription className="text-xs mt-0.5">
+                  Gross transaction volume vs retained net capital (TND)
+                </CardDescription>
+              </div>
+
+              {/* Curve filter tabs */}
+              <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-xl border border-border/40 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setRevenueChartMode("all")}
+                  className={`text-[11px] font-medium px-2 py-1 rounded-lg transition-all ${
+                    revenueChartMode === "all"
+                      ? "bg-background text-foreground shadow-sm font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  All Curves
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRevenueChartMode("gross")}
+                  className={`text-[11px] font-medium px-2 py-1 rounded-lg transition-all ${
+                    revenueChartMode === "gross"
+                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Gross
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRevenueChartMode("net")}
+                  className={`text-[11px] font-medium px-2 py-1 rounded-lg transition-all ${
+                    revenueChartMode === "net"
+                      ? "bg-purple-500/20 text-purple-400 border border-purple-500/30 shadow-sm font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Net Only
+                </button>
+              </div>
+            </div>
+
+            {/* Crypto Ticker Bar */}
+            <div className="pt-2 flex flex-wrap items-baseline justify-between gap-2">
+              <div className="flex items-baseline gap-2.5">
+                <span className="text-2xl font-black font-mono tracking-tight text-foreground">
+                  {isLoading ? "—" : `${fmt(latestPoint.revenue)} TND`}
+                </span>
+                <span className={`inline-flex items-center gap-1 font-mono text-xs font-semibold px-2 py-0.5 rounded-full ${
+                  revGrowthPct >= 0
+                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                    : "bg-rose-500/10 text-rose-400 border border-rose-500/30"
+                }`}>
+                  {revGrowthPct >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                  {revGrowthPct >= 0 ? "+" : ""}{revGrowthPct.toFixed(1)}% (30d)
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground">
+                <span>ATH: <strong className="text-foreground">{fmt(athRevenue)}</strong></span>
+                <span>·</span>
+                <span>ATL: <strong className="text-foreground">{fmt(atlRevenue)}</strong></span>
+                <span>·</span>
+                <span>Orders: <strong className="text-foreground">{latestPoint.orders}</strong></span>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent>
+
+          <CardContent className="pt-4">
             {!isLoading && !hasActivity ? (
               <div className="h-[280px] flex items-center justify-center text-xs text-muted-foreground">
                 No orders recorded yet.
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={activeMonthly}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={11} />
-                  <YAxis stroke="var(--muted-foreground)" fontSize={11} />
-                  <Tooltip {...tooltipStyle} />
-                  <Legend wrapperStyle={{ fontSize: "11px" }} />
+                <ComposedChart data={activeMonthly}>
+                  <defs>
+                    <linearGradient id="cryptoGrossGreen" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#10b981" stopOpacity={0.45} />
+                      <stop offset="65%" stopColor="#10b981" stopOpacity={0.06} />
+                      <stop offset="100%" stopColor="#10b981" stopOpacity={0.0} />
+                    </linearGradient>
+                    <linearGradient id="cryptoNetPurple" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#a855f7" stopOpacity={0.35} />
+                      <stop offset="70%" stopColor="#a855f7" stopOpacity={0.05} />
+                      <stop offset="100%" stopColor="#a855f7" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255, 255, 255, 0.07)" />
+                  <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis
+                    stroke="var(--muted-foreground)"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip content={<CryptoChartTooltip unit="TND" />} />
+                  <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
                   <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="4 4" />
-                  <Line type="monotone" dataKey="revenue"    stroke="#10b981" strokeWidth={2.5} dot={false} name="Gross Sales (TND)" />
-                  <Line type="monotone" dataKey="refunds"    stroke="#f43f5e" strokeWidth={1.5} dot={false} name="Refunds (TND)"      strokeDasharray="4 4" />
-                  <Line type="monotone" dataKey="netRevenue" stroke="#8b5cf6" strokeWidth={2}   dot={false} name="Net Revenue (TND)" />
-                </LineChart>
+
+                  {(revenueChartMode === "all" || revenueChartMode === "gross") && (
+                    <Area
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#10b981"
+                      strokeWidth={3}
+                      fill="url(#cryptoGrossGreen)"
+                      dot={{ r: 2.5, fill: "#10b981", strokeWidth: 1.5, stroke: "#ffffff" }}
+                      activeDot={{ r: 6, fill: "#10b981", stroke: "#ffffff", strokeWidth: 2 }}
+                      name="Gross Sales (TND)"
+                    />
+                  )}
+
+                  {(revenueChartMode === "all" || revenueChartMode === "net") && (
+                    <Area
+                      type="monotone"
+                      dataKey="netRevenue"
+                      stroke="#a855f7"
+                      strokeWidth={2.5}
+                      fill="url(#cryptoNetPurple)"
+                      dot={{ r: 2, fill: "#a855f7", strokeWidth: 1, stroke: "#ffffff" }}
+                      activeDot={{ r: 5, fill: "#a855f7", stroke: "#ffffff", strokeWidth: 2 }}
+                      name="Net Revenue (TND)"
+                    />
+                  )}
+
+                  {revenueChartMode === "all" && (
+                    <Line
+                      type="monotone"
+                      dataKey="refunds"
+                      stroke="#f43f5e"
+                      strokeWidth={1.5}
+                      dot={false}
+                      strokeDasharray="4 4"
+                      name="Refunds (TND)"
+                    />
+                  )}
+                </ComposedChart>
               </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
 
-        <Card className="border-border/50 bg-card/50 backdrop-blur rounded-3xl">
-          <CardHeader>
-            <CardTitle className="text-base font-bold">Audience &amp; Creator Acquisition</CardTitle>
-            <CardDescription className="text-xs">
-              Cumulative registered accounts &amp; monthly new registrations
-            </CardDescription>
+        {/* Crypto Chart 2: Audience & Creator Adoption Curve */}
+        <Card className="border border-border/60 bg-gradient-to-b from-card/80 via-card/50 to-card/30 backdrop-blur-xl rounded-3xl overflow-hidden shadow-xl">
+          <CardHeader className="pb-3 border-b border-border/30">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="flex h-2 w-2 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500" />
+                  </span>
+                  <CardTitle className="text-sm font-bold tracking-tight">Adoption &amp; Styler Accumulation</CardTitle>
+                  <span className="text-[10px] font-mono text-muted-foreground uppercase px-1.5 py-0.5 rounded bg-muted/60 border border-border/40">
+                    Network Growth
+                  </span>
+                </div>
+                <CardDescription className="text-xs mt-0.5">
+                  Cumulative accounts &amp; monthly onboarding volume bars
+                </CardDescription>
+              </div>
+
+              {/* Curve filter tabs */}
+              <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-xl border border-border/40 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setUserChartMode("both")}
+                  className={`text-[11px] font-medium px-2 py-1 rounded-lg transition-all ${
+                    userChartMode === "both"
+                      ? "bg-background text-foreground shadow-sm font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Both (Curve+Vol)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserChartMode("cumulative")}
+                  className={`text-[11px] font-medium px-2 py-1 rounded-lg transition-all ${
+                    userChartMode === "cumulative"
+                      ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-sm font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Curve
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserChartMode("inflow")}
+                  className={`text-[11px] font-medium px-2 py-1 rounded-lg transition-all ${
+                    userChartMode === "inflow"
+                      ? "bg-purple-500/20 text-purple-400 border border-purple-500/30 shadow-sm font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Inflow Vol
+                </button>
+              </div>
+            </div>
+
+            {/* Crypto Ticker Bar */}
+            <div className="pt-2 flex flex-wrap items-baseline justify-between gap-2">
+              <div className="flex items-baseline gap-2.5">
+                <span className="text-2xl font-black font-mono tracking-tight text-foreground">
+                  {isLoading ? "—" : latestPoint.users.toLocaleString()}
+                </span>
+                <span className="text-xs font-semibold text-muted-foreground">Accounts</span>
+                <span className={`inline-flex items-center gap-1 font-mono text-xs font-semibold px-2 py-0.5 rounded-full ${
+                  usersGrowthPct >= 0
+                    ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30"
+                    : "bg-rose-500/10 text-rose-400 border border-rose-500/30"
+                }`}>
+                  <ArrowUpRight size={11} />
+                  +{usersGrowthPct.toFixed(1)}% MoM
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground">
+                <span>Inflow: <strong className="text-cyan-400">+{latestPoint.newUsers} new</strong></span>
+                <span>·</span>
+                <span>Brands: <strong className="text-foreground">{activeDashMetrics?.totalBrands ?? 54}</strong></span>
+                <span>·</span>
+                <span>Stylers: <strong className="text-foreground">{activeDashMetrics?.totalPosts ?? 412}</strong></span>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent>
+
+          <CardContent className="pt-4">
             <ResponsiveContainer width="100%" height={280}>
-              <AreaChart data={activeMonthly}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={11} />
-                <YAxis stroke="var(--muted-foreground)" fontSize={11} />
-                <Tooltip {...tooltipStyle} />
-                <Legend wrapperStyle={{ fontSize: "11px" }} />
-                <Area type="monotone" dataKey="users"    stroke="#8b5cf6" fill="rgba(139,92,246,0.15)"  strokeWidth={2}   name="Total Users" />
-                <Area type="monotone" dataKey="newUsers" stroke="#06b6d4" fill="rgba(6,182,212,0.1)"   strokeWidth={1.5} name="New This Month" />
-              </AreaChart>
+              <ComposedChart data={activeMonthly}>
+                <defs>
+                  <linearGradient id="cryptoAdoptionGlow" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.45} />
+                    <stop offset="50%" stopColor="#8b5cf6" stopOpacity={0.15} />
+                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.0} />
+                  </linearGradient>
+                  <linearGradient id="cryptoBarVolume" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#06b6d4" stopOpacity={0.55} />
+                    <stop offset="100%" stopColor="#06b6d4" stopOpacity={0.08} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255, 255, 255, 0.07)" />
+                <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis
+                  yAxisId="users"
+                  stroke="var(--muted-foreground)"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => `${(v / 1000).toFixed(1)}k`}
+                />
+                <YAxis
+                  yAxisId="volume"
+                  orientation="right"
+                  hide
+                  domain={[0, (dataMax: number) => Math.max(dataMax * 3.2, 500)]}
+                />
+                <Tooltip content={<CryptoChartTooltip unit="users" />} />
+                <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
+
+                {(userChartMode === "both" || userChartMode === "inflow") && (
+                  <Bar
+                    yAxisId="volume"
+                    dataKey="newUsers"
+                    fill="url(#cryptoBarVolume)"
+                    radius={[4, 4, 0, 0]}
+                    barSize={18}
+                    name="Monthly Inflow (Volume)"
+                  />
+                )}
+
+                {(userChartMode === "both" || userChartMode === "cumulative") && (
+                  <Area
+                    yAxisId="users"
+                    type="monotone"
+                    dataKey="users"
+                    stroke="#06b6d4"
+                    strokeWidth={3}
+                    fill="url(#cryptoAdoptionGlow)"
+                    dot={{ r: 2.5, fill: "#06b6d4", strokeWidth: 1.5, stroke: "#ffffff" }}
+                    activeDot={{ r: 6, fill: "#06b6d4", stroke: "#ffffff", strokeWidth: 2 }}
+                    name="Total Accounts"
+                  />
+                )}
+              </ComposedChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
