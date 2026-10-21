@@ -2,6 +2,7 @@ import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { isUnauthorized } from "@/lib/api";
 import { useCallback, useEffect, useMemo } from "react";
+import { MOCK_ADMIN_USER, DEV_BYPASS_AUTH } from "@/components/AdminGuard";
 
 type UseAuthOptions = {
   redirectOnUnauthenticated?: boolean;
@@ -18,6 +19,7 @@ export function useAuth(options?: UseAuthOptions) {
   const meQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
     refetchOnWindowFocus: false,
+    enabled: !DEV_BYPASS_AUTH,
   });
 
   const logoutMutation = trpc.auth.logout.useMutation({
@@ -40,6 +42,14 @@ export function useAuth(options?: UseAuthOptions) {
   }, [logoutMutation, utils]);
 
   const state = useMemo(() => {
+    if (DEV_BYPASS_AUTH) {
+      return {
+        user: MOCK_ADMIN_USER,
+        loading: false,
+        error: null,
+        isAuthenticated: true,
+      };
+    }
     return {
       user: meQuery.data ?? null,
       loading: meQuery.isLoading || logoutMutation.isPending,
@@ -55,13 +65,14 @@ export function useAuth(options?: UseAuthOptions) {
   ]);
 
   useEffect(() => {
+    if (DEV_BYPASS_AUTH) return;
     if (!redirectOnUnauthenticated) return;
     if (meQuery.isLoading || logoutMutation.isPending) return;
     if (state.user) return;
     if (typeof window === "undefined") return;
     if (window.location.pathname === redirectPath) return;
 
-    window.location.href = redirectPath
+    window.location.href = redirectPath;
   }, [
     redirectOnUnauthenticated,
     redirectPath,

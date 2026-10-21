@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
 import { ShortId, shortId } from "@/components/ShortId";
 import { toast } from "sonner";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   Search, Package, Truck, MapPin, RefreshCw, X, ChevronDown, ChevronRight,
   Eye, Check, Clock, CheckCircle2, AlertCircle, Ban, Undo2, ArrowUpRight, DollarSign, ShieldCheck, ShoppingCart
@@ -39,6 +40,7 @@ const SHIP_STATUS_CFG: Record<string, { label: string; cls: string; icon: any }>
 };
 
 export default function Orders() {
+  const { t, language } = useLanguage();
   const { data: orders = [], isLoading, refetch } = trpc.delivery.adminListOrders.useQuery();
   const updateShipmentMutation = trpc.delivery.updateShipment.useMutation();
   const cancelOrderMutation = trpc.orders.cancelOrder.useMutation();
@@ -134,9 +136,9 @@ export default function Orders() {
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* Header */}
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-black tracking-tight">Orders & Multi-Brand Shipments</h1>
+        <h1 className="text-3xl font-black tracking-tight">{t("orders.title")}</h1>
         <p className="text-sm text-muted-foreground">
-          Track customer purchases, brand confirmation statuses, admin delivery approvals, and refund/cancellation requests.
+          {t("orders.subtitle")}
         </p>
       </div>
 

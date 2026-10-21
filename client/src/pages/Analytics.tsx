@@ -13,6 +13,7 @@ import {
   ComposedChart,
 } from "recharts";
 import { trpc } from "@/lib/trpc";
+import { useLanguage } from "@/contexts/LanguageContext";
 import type { AdminWithdrawal } from "@/lib/api/types";
 import {
   DollarSign, TrendingUp, TrendingDown, Undo2, BadgePercent, Sparkles,
@@ -52,17 +53,24 @@ const STATUS_ICONS: Record<AdminWithdrawal["status"], React.ReactNode> = {
   rejected:  <XCircle size={12} className="text-rose-500" />,
 };
 
+const MONTH_MAP_FR: Record<string, string> = {
+  Nov: "Nov", Dec: "Déc", Jan: "Janv", Feb: "Févr", Mar: "Mars", Apr: "Avr",
+  May: "Mai", Jun: "Juin", Jul: "Juil", Aug: "Août", Sep: "Sept", Oct: "Oct",
+};
+
 // ─── crypto custom tooltip ───────────────────────────────────────────────────
 
 function CryptoChartTooltip({ active, payload, label, unit = "TND" }: any) {
+  const { language } = useLanguage();
   if (!active || !payload || !payload.length) return null;
+  const monthDisplay = language === "fr" && MONTH_MAP_FR[label] ? MONTH_MAP_FR[label] : label;
   return (
     <div className="rounded-2xl border border-border/80 bg-background/95 backdrop-blur-xl p-3 shadow-2xl text-xs space-y-2 min-w-[190px] pointer-events-none">
       <div className="flex items-center justify-between border-b border-border/40 pb-1.5 font-mono text-[11px] text-muted-foreground">
-        <span className="font-semibold text-foreground">{label} 2026</span>
+        <span className="font-semibold text-foreground">{monthDisplay} 2026</span>
         <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-medium bg-emerald-500/10 px-1.5 py-0.5 rounded-full border border-emerald-500/20">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          Live Ledger
+          {language === "fr" ? "Registre Direct" : "Live Ledger"}
         </span>
       </div>
       <div className="space-y-1">
@@ -169,10 +177,11 @@ function KpiCard({ label, value, sub, icon, color = "text-foreground", trend }: 
 // ─── withdrawal table ────────────────────────────────────────────────────────
 
 function WithdrawalTable({ rows }: { rows: AdminWithdrawal[] }) {
+  const { t, language } = useLanguage();
   if (rows.length === 0) {
     return (
       <div className="h-32 flex items-center justify-center text-xs text-muted-foreground">
-        No withdrawal requests found.
+        {t("analytics.comm.noRequests")}
       </div>
     );
   }
@@ -181,11 +190,11 @@ function WithdrawalTable({ rows }: { rows: AdminWithdrawal[] }) {
       <table className="w-full text-xs">
         <thead>
           <tr className="border-b border-border/40">
-            <th className="text-left py-2 px-3 text-muted-foreground font-medium">Requester</th>
-            <th className="text-left py-2 px-3 text-muted-foreground font-medium">Amount</th>
-            <th className="text-left py-2 px-3 text-muted-foreground font-medium">Method</th>
-            <th className="text-left py-2 px-3 text-muted-foreground font-medium">Status</th>
-            <th className="text-left py-2 px-3 text-muted-foreground font-medium">Date</th>
+            <th className="text-left py-2 px-3 text-muted-foreground font-medium">{t("analytics.comm.thRequester")}</th>
+            <th className="text-left py-2 px-3 text-muted-foreground font-medium">{t("analytics.comm.thAmount")}</th>
+            <th className="text-left py-2 px-3 text-muted-foreground font-medium">{t("analytics.comm.thMethod")}</th>
+            <th className="text-left py-2 px-3 text-muted-foreground font-medium">{t("analytics.comm.thStatus")}</th>
+            <th className="text-left py-2 px-3 text-muted-foreground font-medium">{t("analytics.comm.thDate")}</th>
           </tr>
         </thead>
         <tbody>
@@ -204,11 +213,11 @@ function WithdrawalTable({ rows }: { rows: AdminWithdrawal[] }) {
                   style={{ borderColor: STATUS_COLORS[w.status], color: STATUS_COLORS[w.status] }}
                 >
                   {STATUS_ICONS[w.status]}
-                  {w.status}
+                  {t(`common.${w.status}`, w.status)}
                 </Badge>
               </td>
               <td className="py-2 px-3 text-muted-foreground">
-                {new Date(w.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}
+                {new Date(w.createdAt).toLocaleDateString(language === "fr" ? "fr-FR" : "en-GB", { day: "2-digit", month: "short", year: "2-digit" })}
               </td>
             </tr>
           ))}
@@ -223,6 +232,7 @@ function WithdrawalTable({ rows }: { rows: AdminWithdrawal[] }) {
 type CommissionView = "user" | "brand";
 
 export default function Analytics() {
+  const { t, language } = useLanguage();
   const [commissionView, setCommissionView] = useState<CommissionView>("user");
   const [demoMode, setDemoMode] = useState(false);
   const [revenueChartMode, setRevenueChartMode] = useState<"all" | "gross" | "net">("all");
@@ -325,7 +335,7 @@ export default function Analytics() {
   const hasActivity = activeMonthly.some((r) => r.orders > 0 || r.revenue > 0);
 
   const activeView = commissionView === "user" ? {
-    label:        "Creator (User) Commissions",
+    label:        t("analytics.comm.labelUser", "Creator (User) Commissions"),
     paid:         commStats.userPaid,
     pending:      commStats.userPending,
     totalCount:   commStats.userCount,
@@ -335,7 +345,7 @@ export default function Analytics() {
     rows:         commStats.userRows,
     accentColor:  "#f59e0b",
   } : {
-    label:        "Brand Partner Payouts",
+    label:        t("analytics.comm.labelBrand", "Brand Partner Payouts"),
     paid:         commStats.brandPaid,
     pending:      commStats.brandPending,
     totalCount:   commStats.brandCount,
@@ -352,15 +362,15 @@ export default function Analytics() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-black tracking-tight">Platform Financials &amp; Growth</h1>
+            <h1 className="text-3xl font-black tracking-tight">{t("analytics.title")}</h1>
             {demoMode && (
               <Badge variant="outline" className="border-amber-500/50 text-amber-400 bg-amber-500/10 text-xs px-2 py-0.5 animate-pulse">
-                Demo Preview Mode
+                {t("analytics.demoModeActive")}
               </Badge>
             )}
           </div>
           <p className="text-sm text-muted-foreground">
-            Live financial ledger — gross revenue, refunds, creator commissions, brand payouts, and true platform profit.
+            {t("analytics.subtitle")}
           </p>
         </div>
         <div>
@@ -376,7 +386,7 @@ export default function Analytics() {
             }`}
           >
             <FlaskConical size={15} />
-            {demoMode ? "Exit Demo Data" : "Preview Demo Data"}
+            {demoMode ? t("analytics.exitDemo") : t("analytics.previewDemo")}
           </Button>
         </div>
       </div>
@@ -384,33 +394,33 @@ export default function Analytics() {
       {/* ── Row 1: Core Financial KPIs ────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
-          label="Gross Order Volume"
+          label={t("analytics.kpi.gross")}
           value={`${fmt(gross)} TND`}
-          sub="Total incoming transaction value"
+          sub={t("analytics.kpi.grossSub")}
           icon={<DollarSign className="h-4 w-4 text-emerald-500" />}
           color="text-emerald-400"
           trend="up"
         />
         <KpiCard
-          label="Total Money Refunded"
+          label={t("analytics.kpi.refunds")}
           value={`-${fmt(refunds)} TND`}
-          sub={`${activeFinancial?.refundsCount ?? 0} refunds · ${activeFinancial?.pendingRefundsCount ?? 0} open claim(s)`}
+          sub={`${activeFinancial?.refundsCount ?? 0} ${t("analytics.kpi.refundsCount")} · ${activeFinancial?.pendingRefundsCount ?? 0} ${t("analytics.kpi.claimsOpen")}`}
           icon={<Undo2 className="h-4 w-4 text-rose-500" />}
           color="text-rose-500"
           trend="down"
         />
         <KpiCard
-          label="All Commissions Disbursed"
+          label={t("analytics.kpi.commissions")}
           value={`-${fmt(commStats.totalDisbursed)} TND`}
-          sub={`${fmt(commStats.totalPending)} TND pending · ${activeWithdrawals.filter(w => w.status === "completed").length} paid out`}
+          sub={`${fmt(commStats.totalPending)} TND ${t("analytics.kpi.commissionsPending")} · ${activeWithdrawals.filter(w => w.status === "completed").length} ${t("analytics.kpi.paidOut")}`}
           icon={<BadgePercent className="h-4 w-4 text-amber-500" />}
           color="text-amber-400"
           trend="down"
         />
         <KpiCard
-          label="Retained Net Gain"
+          label={t("analytics.kpi.netGain")}
           value={`${platformProfit >= 0 ? "+" : ""}${fmt(platformProfit)} TND`}
-          sub="Gross − refunds − creator payouts − brand payouts"
+          sub={t("analytics.kpi.netGainSub")}
           icon={<Sparkles className="h-4 w-4 text-primary" />}
           color={platformProfit < 0 ? "text-rose-500" : "text-primary"}
           trend={platformProfit >= 0 ? "up" : "down"}
@@ -423,10 +433,10 @@ export default function Analytics() {
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2 mb-1">
               <ShoppingBag size={14} className="text-blue-400" />
-              <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">Orders</span>
+              <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">{t("analytics.kpi.orders")}</span>
             </div>
             <div className="text-xl font-black">{isLoading ? "—" : (activeDashMetrics?.totalOrders ?? totalOrders).toLocaleString()}</div>
-            <div className="text-[10px] text-muted-foreground mt-0.5">total placed</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">{t("analytics.kpi.ordersSub")}</div>
           </CardContent>
         </Card>
 
@@ -434,10 +444,10 @@ export default function Analytics() {
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2 mb-1">
               <BarChart3 size={14} className="text-violet-400" />
-              <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">Avg Order</span>
+              <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">{t("analytics.kpi.avgOrder")}</span>
             </div>
             <div className="text-xl font-black">{isLoading ? "—" : `${fmt(avgOrderValue)} TND`}</div>
-            <div className="text-[10px] text-muted-foreground mt-0.5">per transaction</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">{t("analytics.kpi.avgOrderSub")}</div>
           </CardContent>
         </Card>
 
@@ -445,10 +455,10 @@ export default function Analytics() {
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2 mb-1">
               <Users size={14} className="text-cyan-400" />
-              <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">Users</span>
+              <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">{t("analytics.kpi.users")}</span>
             </div>
             <div className="text-xl font-black">{isLoading ? "—" : (activeDashMetrics?.totalUsers ?? 0).toLocaleString()}</div>
-            <div className="text-[10px] text-muted-foreground mt-0.5">registered accounts</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">{t("analytics.kpi.usersSub")}</div>
           </CardContent>
         </Card>
 
@@ -456,10 +466,10 @@ export default function Analytics() {
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2 mb-1">
               <ArrowUpCircle size={14} className="text-emerald-400" />
-              <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">Payout Rate</span>
+              <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">{t("analytics.kpi.payoutRate")}</span>
             </div>
             <div className="text-xl font-black">{isLoading ? "—" : pct(commStats.totalDisbursed, gross)}</div>
-            <div className="text-[10px] text-muted-foreground mt-0.5">of gross to payees</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">{t("analytics.kpi.payoutRateSub")}</div>
           </CardContent>
         </Card>
 
@@ -467,10 +477,10 @@ export default function Analytics() {
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2 mb-1">
               <ArrowDownCircle size={14} className="text-rose-400" />
-              <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">Refund Rate</span>
+              <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">{t("analytics.kpi.refundRate")}</span>
             </div>
             <div className="text-xl font-black">{isLoading ? "—" : pct(refunds, gross)}</div>
-            <div className="text-[10px] text-muted-foreground mt-0.5">of gross refunded</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">{t("analytics.kpi.refundRateSub")}</div>
           </CardContent>
         </Card>
 
@@ -478,10 +488,10 @@ export default function Analytics() {
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2 mb-1">
               <AlertCircle size={14} className="text-amber-400" />
-              <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">Pending Payouts</span>
+              <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">{t("analytics.kpi.pendingPayouts")}</span>
             </div>
             <div className="text-xl font-black">{isLoading ? "—" : `${fmt(commStats.totalPending)} TND`}</div>
-            <div className="text-[10px] text-muted-foreground mt-0.5">awaiting approval</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">{t("analytics.kpi.pendingPayoutsSub")}</div>
           </CardContent>
         </Card>
       </div>
@@ -498,13 +508,13 @@ export default function Analytics() {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                   </span>
-                  <CardTitle className="text-sm font-bold tracking-tight">Market Flow &amp; Sales Curve</CardTitle>
+                  <CardTitle className="text-sm font-bold tracking-tight">{t("analytics.chart1.title")}</CardTitle>
                   <span className="text-[10px] font-mono text-muted-foreground uppercase px-1.5 py-0.5 rounded bg-muted/60 border border-border/40">
-                    Live Ledger
+                    {t("analytics.chart1.badge")}
                   </span>
                 </div>
                 <CardDescription className="text-xs mt-0.5">
-                  Gross transaction volume vs retained net capital (TND)
+                  {t("analytics.chart1.desc")}
                 </CardDescription>
               </div>
 
@@ -562,11 +572,11 @@ export default function Analytics() {
                 </span>
               </div>
               <div className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground">
-                <span>ATH: <strong className="text-foreground">{fmt(athRevenue)}</strong></span>
+                <span>{t("analytics.chart1.ath", "ATH")}: <strong className="text-foreground">{fmt(athRevenue)}</strong></span>
                 <span>·</span>
-                <span>ATL: <strong className="text-foreground">{fmt(atlRevenue)}</strong></span>
+                <span>{t("analytics.chart1.atl", "ATL")}: <strong className="text-foreground">{fmt(atlRevenue)}</strong></span>
                 <span>·</span>
-                <span>Orders: <strong className="text-foreground">{latestPoint.orders}</strong></span>
+                <span>{t("analytics.chart1.orders")}: <strong className="text-foreground">{latestPoint.orders}</strong></span>
               </div>
             </div>
           </CardHeader>
@@ -574,7 +584,7 @@ export default function Analytics() {
           <CardContent className="pt-4">
             {!isLoading && !hasActivity ? (
               <div className="h-[280px] flex items-center justify-center text-xs text-muted-foreground">
-                No orders recorded yet.
+                {language === "fr" ? "Aucune commande enregistrée pour l'instant." : "No orders recorded yet."}
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={280}>
@@ -592,7 +602,7 @@ export default function Analytics() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255, 255, 255, 0.07)" />
-                  <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+                  <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(m) => (language === "fr" && MONTH_MAP_FR[m] ? MONTH_MAP_FR[m] : m)} />
                   <YAxis
                     stroke="var(--muted-foreground)"
                     fontSize={11}
@@ -613,7 +623,7 @@ export default function Analytics() {
                       fill="url(#cryptoGrossGreen)"
                       dot={{ r: 2.5, fill: "#10b981", strokeWidth: 1.5, stroke: "#ffffff" }}
                       activeDot={{ r: 6, fill: "#10b981", stroke: "#ffffff", strokeWidth: 2 }}
-                      name="Gross Sales (TND)"
+                      name={t("analytics.chart1.grossLegend")}
                     />
                   )}
 
@@ -626,7 +636,7 @@ export default function Analytics() {
                       fill="url(#cryptoNetPurple)"
                       dot={{ r: 2, fill: "#a855f7", strokeWidth: 1, stroke: "#ffffff" }}
                       activeDot={{ r: 5, fill: "#a855f7", stroke: "#ffffff", strokeWidth: 2 }}
-                      name="Net Revenue (TND)"
+                      name={t("analytics.chart1.netLegend")}
                     />
                   )}
 
@@ -638,7 +648,7 @@ export default function Analytics() {
                       strokeWidth={1.5}
                       dot={false}
                       strokeDasharray="4 4"
-                      name="Refunds (TND)"
+                      name={t("analytics.chart1.refundsLegend")}
                     />
                   )}
                 </ComposedChart>
@@ -657,13 +667,13 @@ export default function Analytics() {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500" />
                   </span>
-                  <CardTitle className="text-sm font-bold tracking-tight">Adoption &amp; Styler Accumulation</CardTitle>
+                  <CardTitle className="text-sm font-bold tracking-tight">{t("analytics.chart2.title")}</CardTitle>
                   <span className="text-[10px] font-mono text-muted-foreground uppercase px-1.5 py-0.5 rounded bg-muted/60 border border-border/40">
-                    Network Growth
+                    {t("analytics.chart2.badge")}
                   </span>
                 </div>
                 <CardDescription className="text-xs mt-0.5">
-                  Cumulative accounts &amp; monthly onboarding volume bars
+                  {t("analytics.chart2.desc")}
                 </CardDescription>
               </div>
 
@@ -711,7 +721,7 @@ export default function Analytics() {
                 <span className="text-2xl font-black font-mono tracking-tight text-foreground">
                   {isLoading ? "—" : latestPoint.users.toLocaleString()}
                 </span>
-                <span className="text-xs font-semibold text-muted-foreground">Accounts</span>
+                <span className="text-xs font-semibold text-muted-foreground">{t("analytics.chart2.accounts")}</span>
                 <span className={`inline-flex items-center gap-1 font-mono text-xs font-semibold px-2 py-0.5 rounded-full ${
                   usersGrowthPct >= 0
                     ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/30"
@@ -722,11 +732,11 @@ export default function Analytics() {
                 </span>
               </div>
               <div className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground">
-                <span>Inflow: <strong className="text-cyan-400">+{latestPoint.newUsers} new</strong></span>
+                <span>Influx: <strong className="text-cyan-400">+{latestPoint.newUsers} {t("analytics.chart2.inflowSub")}</strong></span>
                 <span>·</span>
-                <span>Brands: <strong className="text-foreground">{activeDashMetrics?.totalBrands ?? 54}</strong></span>
+                <span>{t("analytics.chart2.brands")}: <strong className="text-foreground">{activeDashMetrics?.totalBrands ?? 54}</strong></span>
                 <span>·</span>
-                <span>Stylers: <strong className="text-foreground">{activeDashMetrics?.totalPosts ?? 412}</strong></span>
+                <span>{t("analytics.chart2.stylers")}: <strong className="text-foreground">{activeDashMetrics?.totalPosts ?? 412}</strong></span>
               </div>
             </div>
           </CardHeader>
@@ -746,7 +756,7 @@ export default function Analytics() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255, 255, 255, 0.07)" />
-                <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+                <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(m) => (language === "fr" && MONTH_MAP_FR[m] ? MONTH_MAP_FR[m] : m)} />
                 <YAxis
                   yAxisId="users"
                   stroke="var(--muted-foreground)"
@@ -771,7 +781,7 @@ export default function Analytics() {
                     fill="url(#cryptoBarVolume)"
                     radius={[4, 4, 0, 0]}
                     barSize={18}
-                    name="Monthly Inflow (Volume)"
+                    name={t("analytics.chart2.inflowLegend")}
                   />
                 )}
 
@@ -785,7 +795,7 @@ export default function Analytics() {
                     fill="url(#cryptoAdoptionGlow)"
                     dot={{ r: 2.5, fill: "#06b6d4", strokeWidth: 1.5, stroke: "#ffffff" }}
                     activeDot={{ r: 6, fill: "#06b6d4", stroke: "#ffffff", strokeWidth: 2 }}
-                    name="Total Accounts"
+                    name={t("analytics.chart2.totalLegend")}
                   />
                 )}
               </ComposedChart>
@@ -798,13 +808,13 @@ export default function Analytics() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="border-border/50 bg-card/50 backdrop-blur rounded-3xl">
           <CardHeader>
-            <CardTitle className="text-base font-bold">Monthly Order Volume</CardTitle>
-            <CardDescription className="text-xs">Number of orders placed per month</CardDescription>
+            <CardTitle className="text-base font-bold">{t("analytics.chart3.title")}</CardTitle>
+            <CardDescription className="text-xs">{t("analytics.chart3.desc")}</CardDescription>
           </CardHeader>
           <CardContent>
             {!isLoading && !hasActivity ? (
               <div className="h-[220px] flex items-center justify-center text-xs text-muted-foreground">
-                No orders recorded yet.
+                {language === "fr" ? "Aucune commande enregistrée pour l'instant." : "No orders recorded yet."}
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
@@ -813,7 +823,7 @@ export default function Analytics() {
                   <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={11} />
                   <YAxis stroke="var(--muted-foreground)" fontSize={11} allowDecimals={false} />
                   <Tooltip {...tooltipStyle} />
-                  <Bar dataKey="orders" fill="#3b82f6" name="Orders" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="orders" fill="#3b82f6" name={t("analytics.chart3.legend")} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -822,15 +832,15 @@ export default function Analytics() {
 
         <Card className="border-border/50 bg-card/50 backdrop-blur rounded-3xl">
           <CardHeader>
-            <CardTitle className="text-base font-bold">Withdrawal Request Status</CardTitle>
+            <CardTitle className="text-base font-bold">{t("analytics.chart4.title")}</CardTitle>
             <CardDescription className="text-xs">
-              All-time breakdown of payout requests by resolution status
+              {t("analytics.chart4.desc")}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {isWithdrawalsLoading || statusPie.length === 0 ? (
               <div className="h-[220px] flex items-center justify-center text-xs text-muted-foreground">
-                {isWithdrawalsLoading ? "Loading…" : "No withdrawal requests yet."}
+                {isWithdrawalsLoading ? t("common.loading") : (language === "fr" ? "Aucune demande de virement pour l'instant." : "No withdrawal requests yet.")}
               </div>
             ) : (
               <div className="flex items-center gap-4">
@@ -862,12 +872,12 @@ export default function Analytics() {
                         className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ background: STATUS_COLORS[entry.name as AdminWithdrawal["status"]] ?? "#6b7280" }}
                       />
-                      <span className="capitalize text-foreground font-medium">{entry.name}</span>
+                      <span className="capitalize text-foreground font-medium">{t(`common.${entry.name}`, entry.name)}</span>
                       <span className="text-muted-foreground ml-auto pl-3 font-semibold">{entry.value}</span>
                     </div>
                   ))}
                   <div className="mt-2 pt-2 border-t border-border/40 text-muted-foreground">
-                    Total: <span className="text-foreground font-bold">{activeWithdrawals.length}</span>
+                    {t("analytics.chart4.total")}: <span className="text-foreground font-bold">{activeWithdrawals.length}</span>
                   </div>
                 </div>
               </div>
@@ -881,9 +891,9 @@ export default function Analytics() {
         {/* Section header + dropdown selector */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h2 className="text-xl font-bold">Commission Deep-Dive</h2>
+            <h2 className="text-xl font-bold">{t("analytics.comm.title")}</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Detailed breakdown of outgoing payouts by recipient type
+              {t("analytics.comm.desc")}
             </p>
           </div>
           <Select
@@ -895,8 +905,8 @@ export default function Analytics() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="rounded-xl">
-              <SelectItem value="user">👤 Creator (User) Commissions</SelectItem>
-              <SelectItem value="brand">🏷️ Brand Partner Payouts</SelectItem>
+              <SelectItem value="user">{t("analytics.comm.selectUser")}</SelectItem>
+              <SelectItem value="brand">{t("analytics.comm.selectBrand")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -906,13 +916,13 @@ export default function Analytics() {
           <Card className="border border-border/50 bg-card/50 backdrop-blur rounded-2xl">
             <CardContent className="pt-4 pb-3">
               <div className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide mb-1">
-                Total Disbursed
+                {t("analytics.comm.totalDisbursed")}
               </div>
               <div className="text-xl font-black" style={{ color: activeView.accentColor }}>
                 {isWithdrawalsLoading ? "—" : `${fmt(activeView.paid)} TND`}
               </div>
               <div className="text-[10px] text-muted-foreground mt-0.5">
-                {activeView.paidCount} completed payout{activeView.paidCount !== 1 ? "s" : ""}
+                {activeView.paidCount} {t("analytics.comm.completedPayouts")}
               </div>
             </CardContent>
           </Card>
@@ -920,13 +930,13 @@ export default function Analytics() {
           <Card className="border border-border/50 bg-card/50 backdrop-blur rounded-2xl">
             <CardContent className="pt-4 pb-3">
               <div className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide mb-1">
-                Pending / Approved
+                {t("analytics.comm.pendingApproved")}
               </div>
               <div className="text-xl font-black text-amber-400">
                 {isWithdrawalsLoading ? "—" : `${fmt(activeView.pending)} TND`}
               </div>
               <div className="text-[10px] text-muted-foreground mt-0.5">
-                {activeView.pendingCount} request{activeView.pendingCount !== 1 ? "s" : ""} awaiting
+                {activeView.pendingCount} {t("analytics.comm.awaitingRequests")}
               </div>
             </CardContent>
           </Card>
@@ -934,13 +944,13 @@ export default function Analytics() {
           <Card className="border border-border/50 bg-card/50 backdrop-blur rounded-2xl">
             <CardContent className="pt-4 pb-3">
               <div className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide mb-1">
-                Total Requests
+                {t("analytics.comm.totalRequests")}
               </div>
               <div className="text-xl font-black text-foreground">
                 {isWithdrawalsLoading ? "—" : activeView.totalCount}
               </div>
               <div className="text-[10px] text-muted-foreground mt-0.5">
-                {activeView.rejectedCount} rejected
+                {activeView.rejectedCount} {t("analytics.comm.rejected")}
               </div>
             </CardContent>
           </Card>
@@ -948,14 +958,14 @@ export default function Analytics() {
           <Card className="border border-border/50 bg-card/50 backdrop-blur rounded-2xl">
             <CardContent className="pt-4 pb-3">
               <div className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide mb-1">
-                Avg Payout
+                {t("analytics.comm.avgPayout")}
               </div>
               <div className="text-xl font-black text-foreground">
                 {isWithdrawalsLoading || activeView.paidCount === 0
                   ? "—"
                   : `${fmt(activeView.paid / activeView.paidCount)} TND`}
               </div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">per completed request</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">{t("analytics.comm.perCompleted")}</div>
             </CardContent>
           </Card>
         </div>
@@ -966,20 +976,20 @@ export default function Analytics() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-sm font-bold">
-                  Recent {activeView.label} — Requests Log
+                  {language === "fr" ? "Journal Récent" : "Recent"} {activeView.label} — {t("analytics.comm.recentLog")}
                 </CardTitle>
                 <CardDescription className="text-xs mt-0.5">
-                  Latest 10 payout requests for this category
+                  {t("analytics.comm.recentDesc")}
                 </CardDescription>
               </div>
               <Badge variant="outline" className="text-[10px]" style={{ borderColor: activeView.accentColor, color: activeView.accentColor }}>
-                {activeView.totalCount} total
+                {activeView.totalCount} {t("analytics.chart4.total").toLowerCase()}
               </Badge>
             </div>
           </CardHeader>
           <CardContent className="pt-0">
             {isWithdrawalsLoading ? (
-              <div className="h-32 flex items-center justify-center text-xs text-muted-foreground">Loading…</div>
+              <div className="h-32 flex items-center justify-center text-xs text-muted-foreground">{t("common.loading")}</div>
             ) : (
               <WithdrawalTable rows={activeView.rows} />
             )}
@@ -990,18 +1000,18 @@ export default function Analytics() {
       {/* ── Platform Profit Waterfall Summary ────────────────────────────── */}
       <Card className="border-border/50 bg-card/50 backdrop-blur rounded-3xl">
         <CardHeader>
-          <CardTitle className="text-base font-bold">Revenue Waterfall</CardTitle>
+          <CardTitle className="text-base font-bold">{t("analytics.waterfall.title")}</CardTitle>
           <CardDescription className="text-xs">
-            Step-by-step breakdown from gross revenue to true platform profit
+            {t("analytics.waterfall.desc")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-2 text-sm">
             {[
-              { label: "Gross Order Volume",             value: gross,                        color: "text-emerald-400", sign: "+" },
-              { label: "Customer Refunds",               value: refunds,                      color: "text-rose-400",    sign: "−" },
-              { label: "Creator Commissions Paid",       value: commStats.userPaid,           color: "text-amber-400",   sign: "−" },
-              { label: "Brand Partner Payouts Paid",     value: commStats.brandPaid,          color: "text-purple-400",  sign: "−" },
+              { label: t("analytics.waterfall.gross"),             value: gross,                        color: "text-emerald-400", sign: "+" },
+              { label: t("analytics.waterfall.refunds"),           value: refunds,                      color: "text-rose-400",    sign: "−" },
+              { label: t("analytics.waterfall.userComm"),          value: commStats.userPaid,           color: "text-amber-400",   sign: "−" },
+              { label: t("analytics.waterfall.brandComm"),         value: commStats.brandPaid,          color: "text-purple-400",  sign: "−" },
             ].map(({ label, value, color, sign }) => (
               <div key={label} className="flex items-center justify-between py-2 border-b border-border/30">
                 <span className="text-muted-foreground">{label}</span>
@@ -1011,7 +1021,7 @@ export default function Analytics() {
               </div>
             ))}
             <div className="flex items-center justify-between py-3 mt-1">
-              <span className="font-bold text-base">Net Platform Profit</span>
+              <span className="font-bold text-base">{t("analytics.waterfall.netProfit")}</span>
               <span className={`text-xl font-black ${platformProfit < 0 ? "text-rose-500" : "text-primary"}`}>
                 {platformProfit >= 0 ? "+" : "−"} {fmt(Math.abs(platformProfit))} TND
               </span>

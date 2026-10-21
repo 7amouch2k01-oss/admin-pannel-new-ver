@@ -4,9 +4,11 @@ import { Users, ImageIcon, ShoppingCart, BarChart3, Package, ArrowUpRight, Trend
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
 
 export default function Overview() {
+  const { t, language } = useLanguage();
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { data: metrics, isLoading: metricsLoading } = trpc.dashboard.metrics.useQuery();
@@ -24,10 +26,10 @@ export default function Overview() {
   // 5 Quick Navigation Core Cards with explicit permission mapping
   const quickNavCards = [
     {
-      title: "Users Management",
-      desc: "View creator grades, roles & access",
+      title: t("overview.usersTitle"),
+      desc: t("overview.usersDesc"),
       value: metrics?.totalUsers ?? 0,
-      subtext: "Registered Creators & Shoppers",
+      subtext: t("overview.usersSub"),
       icon: Users,
       color: "text-blue-500",
       bg: "bg-blue-500/10",
@@ -36,10 +38,10 @@ export default function Overview() {
       perm: "users",
     },
     {
-      title: "Posts & Content",
-      desc: "Moderate outfits & engagement analytics",
+      title: t("overview.postsTitle"),
+      desc: t("overview.postsDesc"),
       value: metrics?.totalPosts ?? 0,
-      subtext: "Live Feed Outfits",
+      subtext: t("overview.postsSub"),
       icon: ImageIcon,
       color: "text-rose-500",
       bg: "bg-rose-500/10",
@@ -48,10 +50,10 @@ export default function Overview() {
       perm: "products",
     },
     {
-      title: "Orders & Shipments",
-      desc: "Multi-brand split dispatch & delivery proof",
+      title: t("overview.ordersTitle"),
+      desc: t("overview.ordersDesc"),
       value: metrics?.totalOrders ?? 0,
-      subtext: "Placed Orders",
+      subtext: t("overview.ordersSub"),
       icon: ShoppingCart,
       color: "text-amber-500",
       bg: "bg-amber-500/10",
@@ -60,10 +62,10 @@ export default function Overview() {
       perm: "orders",
     },
     {
-      title: "Platform Analytics",
-      desc: "Financial overview, revenue & gains",
+      title: t("overview.analyticsTitle"),
+      desc: t("overview.analyticsDesc"),
       value: finance?.grossRevenue !== undefined ? `${finance.grossRevenue.toFixed(0)} TND` : `${(metrics?.totalRevenue ?? 0).toFixed(0)} TND`,
-      subtext: `Net Gain: ${finance?.netGain !== undefined ? finance.netGain.toFixed(0) : "0"} TND`,
+      subtext: `${t("overview.analyticsSub")}: ${finance?.netGain !== undefined ? finance.netGain.toFixed(0) : "0"} TND`,
       icon: BarChart3,
       color: "text-emerald-500",
       bg: "bg-emerald-500/10",
@@ -72,10 +74,10 @@ export default function Overview() {
       perm: "analytics",
     },
     {
-      title: "Brands Management",
-      desc: "Verify brand stores & manage partners",
+      title: t("overview.brandsTitle"),
+      desc: t("overview.brandsDesc"),
       value: metrics?.totalBrands ?? 0,
-      subtext: "Active Designer Brands",
+      subtext: t("overview.brandsSub"),
       icon: Package,
       color: "text-purple-500",
       bg: "bg-purple-500/10",
@@ -93,11 +95,11 @@ export default function Overview() {
           <div className="h-7 w-7 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-xs">
             S
           </div>
-          <span className="text-xs font-bold uppercase tracking-wider text-primary">Master Control Hub</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-primary">{t("overview.hubBadge")}</span>
         </div>
-        <h1 className="text-3xl font-black tracking-tight">Styly Executive Overview</h1>
+        <h1 className="text-3xl font-black tracking-tight">{t("overview.title")}</h1>
         <p className="text-sm text-muted-foreground">
-          Real-time snapshot and quick navigation across all core operational modules.
+          {t("overview.subtitle")}
         </p>
       </div>
 
@@ -135,7 +137,7 @@ export default function Overview() {
                   ) : (
                     <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[10px] font-bold">
                       <Lock className="h-3 w-3" />
-                      <span>Locked</span>
+                      <span>{t("overview.locked")}</span>
                     </div>
                   )}
                 </div>
@@ -143,7 +145,7 @@ export default function Overview() {
                   {card.title}
                 </CardTitle>
                 <CardDescription className="text-[11px] line-clamp-1">
-                  {hasAccess ? card.desc : "Requires elevated staff permissions"}
+                  {hasAccess ? card.desc : t("overview.lockedDesc")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-1 space-y-1">
@@ -165,28 +167,28 @@ export default function Overview() {
         <Card className="border border-border/50 bg-gradient-to-r from-card/80 via-primary/5 to-card/80 backdrop-blur p-6 rounded-3xl">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Gross Platform Sales</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t("overview.salesTitle")}</p>
               <p className="text-2xl font-black text-foreground">{finance.grossRevenue.toFixed(2)} TND</p>
-              <p className="text-[11px] text-muted-foreground">All completed consumer orders</p>
+              <p className="text-[11px] text-muted-foreground">{t("overview.salesSub")}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Processed Refunds</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t("overview.refundsTitle")}</p>
               <p className="text-2xl font-black text-rose-500">-{finance.totalRefunds.toFixed(2)} TND</p>
               <p className="text-[11px] text-muted-foreground">
-                {finance.refundsCount} returned{finance.pendingRefundsCount > 0 ? ` · ${finance.pendingRefundsCount} claim(s) open` : ""}
+                {finance.refundsCount} {t("overview.refundsReturned")}{finance.pendingRefundsCount > 0 ? ` · ${finance.pendingRefundsCount} ${t("overview.refundsClaims")}` : ""}
               </p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Commissions Paid</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t("overview.commPaidTitle")}</p>
               <p className="text-2xl font-black text-amber-500">-{finance.commissionsPaid.toFixed(2)} TND</p>
-              <p className="text-[11px] text-muted-foreground">{finance.commissionsPending.toFixed(2)} TND pending</p>
+              <p className="text-[11px] text-muted-foreground">{finance.commissionsPending.toFixed(2)} TND {t("overview.commPending")}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-semibold text-emerald-500 uppercase tracking-wider font-bold">Net Platform Revenue</p>
+              <p className="text-xs font-semibold text-emerald-500 uppercase tracking-wider font-bold">{t("overview.netGainTitle")}</p>
               <p className={`text-2xl font-black ${finance.netGain < 0 ? "text-rose-500" : "text-emerald-500"}`}>
                 {finance.netGain < 0 ? "" : "+"}{finance.netGain.toFixed(2)} TND
               </p>
-              <p className="text-[11px] text-emerald-600/80 font-medium">Retained platform revenue</p>
+              <p className="text-[11px] text-emerald-600/80 font-medium">{t("overview.netGainSub")}</p>
             </div>
           </div>
         </Card>
@@ -197,14 +199,14 @@ export default function Overview() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-lg font-bold">Live Activity Stream</CardTitle>
+              <CardTitle className="text-lg font-bold">{t("overview.activityTitle")}</CardTitle>
               <CardDescription>
-                Real-time operational events across all brands, orders, and users
+                {t("overview.activityDesc")}
               </CardDescription>
             </div>
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-bold border border-emerald-500/20">
               <CheckCircle2 size={13} />
-              <span>Live Synced</span>
+              <span>{t("overview.activitySynced")}</span>
             </div>
           </div>
         </CardHeader>
@@ -239,7 +241,7 @@ export default function Overview() {
                 </div>
               ))
             ) : (
-              <p className="text-xs text-muted-foreground text-center py-6">No recent activity logged yet.</p>
+              <p className="text-xs text-muted-foreground text-center py-6">{t("overview.activityEmpty")}</p>
             )}
           </div>
         </CardContent>

@@ -16,6 +16,7 @@ import { useState, useEffect, useMemo } from "react";
 import { UserDetailDialog } from "@/components/UserDetailDialog";
 import { UserFormDialog } from "@/components/UserFormDialog";
 import { toast } from "sonner";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +42,7 @@ const AVAILABLE_PERMISSIONS = [
 ];
 
 export default function Users() {
+  const { t, language } = useLanguage();
   const { data: rawUsersList = [], isLoading } = trpc.users.list.useQuery();
   const amineOwnerUser = useMemo(() => ({
     id: "amine-owner-id",
@@ -374,9 +376,9 @@ export default function Users() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">Users & Staff Management</h1>
+          <h1 className="text-3xl font-black tracking-tight">{t("users.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Segmented directory for shoppers, staff permissions, and creator commission disbursements.
+            {t("users.subtitle")}
           </p>
         </div>
 
@@ -394,7 +396,7 @@ export default function Users() {
             }`}
           >
             <User className="h-4 w-4" />
-            App Users ({appUsers.length})
+            {t("users.tabApp")} ({appUsers.length})
           </button>
           <button
             onClick={() => {
@@ -408,7 +410,7 @@ export default function Users() {
             }`}
           >
             <Shield className="h-4 w-4 text-amber-500" />
-            Styly Members ({stylyMembers.length})
+            {t("users.tabTeam")} ({stylyMembers.length})
           </button>
           <button
             onClick={() => {
@@ -422,7 +424,7 @@ export default function Users() {
             }`}
           >
             <DollarSign className="h-4 w-4 text-emerald-500" />
-            User Withdrawals ({userWithdrawals.length})
+            {t("users.tabWithdrawals")} ({userWithdrawals.length})
             {pendingWithdrawalsCount > 0 && (
               <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black animate-pulse">
                 {pendingWithdrawalsCount}

@@ -34,9 +34,11 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { BrandFormDialog } from "@/components/BrandFormDialog";
 
 export default function Brands() {
+  const { t, language } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<any>(null);
@@ -197,9 +199,9 @@ export default function Brands() {
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* Header */}
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-black tracking-tight">Fashion Brands & Payouts</h1>
+        <h1 className="text-3xl font-black tracking-tight">{t("brands.title")}</h1>
         <p className="text-sm text-muted-foreground">
-          Review official brand registrations, manage store approvals, and disburse brand profit withdrawals.
+          {t("brands.subtitle")}
         </p>
       </div>
 
