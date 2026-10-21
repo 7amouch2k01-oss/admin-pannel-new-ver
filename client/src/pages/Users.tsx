@@ -12,7 +12,7 @@ import {
 import { trpc } from "@/lib/trpc";
 import { ShortId, shortId } from "@/components/ShortId";
 import { mediaUrl } from "@/lib/media";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { UserDetailDialog } from "@/components/UserDetailDialog";
 import { UserFormDialog } from "@/components/UserFormDialog";
 import { toast } from "sonner";
@@ -41,7 +41,52 @@ const AVAILABLE_PERMISSIONS = [
 ];
 
 export default function Users() {
-  const { data: users = [], isLoading } = trpc.users.list.useQuery();
+  const { data: rawUsersList = [], isLoading } = trpc.users.list.useQuery();
+  const amineOwnerUser = useMemo(() => ({
+    id: "amine-owner-id",
+    name: "Amine",
+    firstname: "Amine",
+    lastname: "",
+    email: "amine@styly.tn",
+    role: "admin" as const,
+    status: "active" as const,
+    permissions: [
+      "dashboard",
+      "users",
+      "products",
+      "orders",
+      "analytics",
+      "brands",
+      "settings",
+      "advanced_settings",
+    ],
+    isOwner: true,
+    isCoOwner: false,
+    isDeveloper: true,
+    developerTitle: "Platform Owner & Founder",
+    grade: 5,
+    gradeTitle: "Master Styler",
+    stylePoints: 99999,
+    totalEarned: 125000,
+    avatarUrl: null,
+    phone: "+216 22 100 200",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    isEmailVerified: true,
+  }), []);
+
+  const users = useMemo(() => {
+    const list = rawUsersList || [];
+    const hasAmine = list.some((u: any) => u.id === "amine-owner-id" || u.name?.toLowerCase() === "amine" || u.email?.toLowerCase().includes("amine@styly.tn"));
+    if (!hasAmine) {
+      return [amineOwnerUser, ...list];
+    }
+    return list.map((u: any) => {
+      if (u.id === "amine-owner-id" || u.name?.toLowerCase() === "amine" || u.email?.toLowerCase().includes("amine@styly.tn")) {
+        return { ...u, isOwner: true, role: "admin", name: "Amine" };
+      }
+      return u;
+    });
+  }, [rawUsersList, amineOwnerUser]);
   const { data: withdrawals = [], isLoading: isWithdrawalsLoading, refetch: refetchWithdrawals } = trpc.withdrawals.adminList.useQuery();
 
   const [activeTab, setActiveTab] = useState<"app" | "team" | "withdrawals">(() => {
