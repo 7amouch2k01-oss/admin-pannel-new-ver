@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from "@/components/ui/card";
@@ -15,7 +16,7 @@ import type { AdminWithdrawal } from "@/lib/api/types";
 import {
   DollarSign, TrendingUp, TrendingDown, Undo2, BadgePercent, Sparkles,
   Users, ShoppingBag, ArrowDownCircle, ArrowUpCircle, Clock, CheckCircle2,
-  XCircle, AlertCircle, BarChart3,
+  XCircle, AlertCircle, BarChart3, FlaskConical,
 } from "lucide-react";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -49,6 +50,51 @@ const STATUS_ICONS: Record<AdminWithdrawal["status"], React.ReactNode> = {
   completed: <CheckCircle2 size={12} className="text-emerald-500" />,
   rejected:  <XCircle size={12} className="text-rose-500" />,
 };
+
+// ─── demo / preview data ─────────────────────────────────────────────────────
+// Injected only when the "Demo Mode" toggle is ON. Toggling it off reverts
+// every number and chart back to whatever the live API returned.
+
+const DEMO_FINANCIAL = {
+  grossRevenue:         184_320.50,
+  totalRefunds:           5_210.75,
+  refundsCount:              47,
+  pendingRefunds:          890.00,
+  pendingRefundsCount:        9,
+  commissionsPaid:        22_180.30,
+  commissionsPending:      3_410.00,
+  netGain:              156_929.45,
+};
+
+const DEMO_MONTHLY = [
+  { month: "Nov", revenue: 9_800,  refunds: 320,  netRevenue: 9_480,  orders: 74,  users: 810,  newUsers: 62 },
+  { month: "Dec", revenue: 14_200, refunds: 510,  netRevenue: 13_690, orders: 109, users: 884,  newUsers: 74 },
+  { month: "Jan", revenue: 11_500, refunds: 290,  netRevenue: 11_210, orders: 88,  users: 960,  newUsers: 76 },
+  { month: "Feb", revenue: 13_700, refunds: 430,  netRevenue: 13_270, orders: 105, users: 1_038, newUsers: 78 },
+  { month: "Mar", revenue: 16_400, refunds: 580,  netRevenue: 15_820, orders: 126, users: 1_120, newUsers: 82 },
+  { month: "Apr", revenue: 18_900, refunds: 640,  netRevenue: 18_260, orders: 145, users: 1_213, newUsers: 93 },
+  { month: "May", revenue: 15_300, refunds: 410,  netRevenue: 14_890, orders: 117, users: 1_298, newUsers: 85 },
+  { month: "Jun", revenue: 19_800, refunds: 720,  netRevenue: 19_080, orders: 152, users: 1_392, newUsers: 94 },
+  { month: "Jul", revenue: 22_100, refunds: 810,  netRevenue: 21_290, orders: 170, users: 1_489, newUsers: 97 },
+  { month: "Aug", revenue: 20_400, refunds: 690,  netRevenue: 19_710, orders: 157, users: 1_578, newUsers: 89 },
+  { month: "Sep", revenue: 17_820, refunds: 490,  netRevenue: 17_330, orders: 137, users: 1_660, newUsers: 82 },
+  { month: "Oct", revenue: 24_400, refunds: 920,  netRevenue: 23_480, orders: 188, users: 1_766, newUsers: 106 },
+];
+
+const DEMO_METRICS = { totalUsers: 1_766, totalOrders: 1_568, totalPosts: 312, totalBrands: 48, totalRevenue: 184_320.50 };
+
+const DEMO_WITHDRAWALS: AdminWithdrawal[] = [
+  { id: "d1",  userId: "u1",  brandId: null, type: "user",  requesterName: "Sarra Ben Ali",    requesterEmail: "sarra@styly.tn",     amount: 420.00,   paymentMethod: "D17",           status: "completed", paymentDetails: {}, adminNotes: null, rejectionReason: null,              createdAt: "2026-10-15T10:00:00Z" },
+  { id: "d2",  userId: "u2",  brandId: null, type: "user",  requesterName: "Yassine Mrad",     requesterEmail: "yassine@styly.tn",   amount: 310.50,   paymentMethod: "Bank Transfer",  status: "pending",   paymentDetails: {}, adminNotes: null, rejectionReason: null,              createdAt: "2026-10-14T09:30:00Z" },
+  { id: "d3",  userId: "u3",  brandId: "b1", type: "brand", requesterName: "Lilas Boutique",   requesterEmail: "lilas@brand.tn",     amount: 1_850.00, paymentMethod: "Bank Transfer",  status: "completed", paymentDetails: {}, adminNotes: null, rejectionReason: null,              createdAt: "2026-10-13T14:20:00Z" },
+  { id: "d4",  userId: "u4",  brandId: null, type: "user",  requesterName: "Amira Khelifi",    requesterEmail: "amira@styly.tn",     amount: 195.75,   paymentMethod: "D17",           status: "approved",  paymentDetails: {}, adminNotes: null, rejectionReason: null,              createdAt: "2026-10-12T11:00:00Z" },
+  { id: "d5",  userId: "u5",  brandId: "b2", type: "brand", requesterName: "Zara TN Partner",  requesterEmail: "partner@zaratn.com", amount: 3_200.00, paymentMethod: "Bank Transfer",  status: "pending",   paymentDetails: {}, adminNotes: null, rejectionReason: null,              createdAt: "2026-10-11T08:45:00Z" },
+  { id: "d6",  userId: "u6",  brandId: null, type: "user",  requesterName: "Omar Dridi",       requesterEmail: "omar@styly.tn",      amount: 540.00,   paymentMethod: "D17",           status: "rejected",  paymentDetails: {}, adminNotes: null, rejectionReason: "Unverified account", createdAt: "2026-10-10T16:00:00Z" },
+  { id: "d7",  userId: "u7",  brandId: "b3", type: "brand", requesterName: "Moda Casa",        requesterEmail: "finance@modacasa.tn",amount: 920.00,   paymentMethod: "Bank Transfer",  status: "completed", paymentDetails: {}, adminNotes: null, rejectionReason: null,              createdAt: "2026-10-09T13:10:00Z" },
+  { id: "d8",  userId: "u8",  brandId: null, type: "user",  requesterName: "Fatma Riahi",      requesterEmail: "fatma@styly.tn",     amount: 280.25,   paymentMethod: "D17",           status: "completed", paymentDetails: {}, adminNotes: null, rejectionReason: null,              createdAt: "2026-10-08T10:55:00Z" },
+  { id: "d9",  userId: "u9",  brandId: "b4", type: "brand", requesterName: "ElStyle Co.",      requesterEmail: "payouts@elstyle.tn", amount: 2_100.00, paymentMethod: "Bank Transfer",  status: "approved",  paymentDetails: {}, adminNotes: null, rejectionReason: null,              createdAt: "2026-10-07T09:00:00Z" },
+  { id: "d10", userId: "u10", brandId: null, type: "user",  requesterName: "Karim Hamdi",      requesterEmail: "karim@styly.tn",     amount: 615.00,   paymentMethod: "Bank Transfer",  status: "completed", paymentDetails: {}, adminNotes: null, rejectionReason: null,              createdAt: "2026-10-06T15:30:00Z" },
+];
 
 // ─── KPI card ────────────────────────────────────────────────────────────────
 
@@ -144,18 +190,27 @@ type CommissionView = "user" | "brand";
 
 export default function Analytics() {
   const [commissionView, setCommissionView] = useState<CommissionView>("user");
+  const [demoMode, setDemoMode] = useState(false);
 
   const { data: fullAnalytics = [], isLoading: fullLoading } = trpc.analytics.full.useQuery();
   const { data: financial, isLoading: financeLoading } = trpc.analytics.financialSummary.useQuery();
   const { data: withdrawals = [], isLoading: wLoading } = trpc.withdrawals.adminList.useQuery();
   const { data: dashMetrics, isLoading: metricsLoading } = trpc.dashboard.metrics.useQuery();
 
-  const isLoading = fullLoading || financeLoading || wLoading || metricsLoading;
+  const isDataLoading = fullLoading || financeLoading || wLoading || metricsLoading;
+  const isLoading = demoMode ? false : isDataLoading;
+  const isWithdrawalsLoading = demoMode ? false : wLoading;
+
+  // ── demo mode: swap every live value for the fake dataset when ON ──────────
+  const activeFinancial   = demoMode ? DEMO_FINANCIAL   : financial;
+  const activeMonthly     = demoMode ? DEMO_MONTHLY     : fullAnalytics;
+  const activeWithdrawals = demoMode ? DEMO_WITHDRAWALS : withdrawals;
+  const activeDashMetrics = demoMode ? DEMO_METRICS     : dashMetrics;
 
   // ── commission split from withdrawals ─────────────────────────────────────
   const commStats = useMemo(() => {
-    const userW = withdrawals.filter((w) => w.type === "user");
-    const brandW = withdrawals.filter((w) => w.type === "brand");
+    const userW = activeWithdrawals.filter((w) => w.type === "user");
+    const brandW = activeWithdrawals.filter((w) => w.type === "brand");
 
     const sum = (arr: AdminWithdrawal[], status?: AdminWithdrawal["status"][]) =>
       arr
@@ -185,31 +240,31 @@ export default function Analytics() {
       brandRows: [...brandW].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
 
       // totals for reference
-      totalDisbursed: sum(withdrawals, ["completed"]),
-      totalPending:   sum(withdrawals, ["pending", "approved"]),
+      totalDisbursed: sum(activeWithdrawals, ["completed"]),
+      totalPending:   sum(activeWithdrawals, ["pending", "approved"]),
     };
-  }, [withdrawals]);
+  }, [activeWithdrawals]);
 
   // ── true platform profit ───────────────────────────────────────────────────
-  const gross      = financial?.grossRevenue ?? 0;
-  const refunds    = financial?.totalRefunds ?? 0;
+  const gross      = activeFinancial?.grossRevenue ?? 0;
+  const refunds    = activeFinancial?.totalRefunds ?? 0;
   const platformProfit = gross - refunds - commStats.userPaid - commStats.brandPaid;
 
   // ── order metrics from monthly data ───────────────────────────────────────
-  const totalOrders = useMemo(() => fullAnalytics.reduce((a, r) => a + (r.orders ?? 0), 0), [fullAnalytics]);
+  const totalOrders = useMemo(() => activeMonthly.reduce((a, r) => a + (r.orders ?? 0), 0), [activeMonthly]);
   const avgOrderValue = totalOrders > 0 ? gross / totalOrders : 0;
 
   // ── withdrawal status breakdown for pie chart ─────────────────────────────
   const statusPie = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const w of withdrawals) map[w.status] = (map[w.status] ?? 0) + 1;
+    for (const w of activeWithdrawals) map[w.status] = (map[w.status] ?? 0) + 1;
     return Object.entries(map).map(([name, value]) => ({ name, value }));
-  }, [withdrawals]);
+  }, [activeWithdrawals]);
 
   // ── monthly commission bar chart (approximate from financial data) ─────────
   // We don't have month-by-month commission data from the server, so we build a
   // proportional estimate — labelled clearly in the chart description.
-  const hasActivity = fullAnalytics.some((r) => r.orders > 0 || r.revenue > 0);
+  const hasActivity = activeMonthly.some((r) => r.orders > 0 || r.revenue > 0);
 
   const activeView = commissionView === "user" ? {
     label:        "Creator (User) Commissions",
@@ -236,11 +291,36 @@ export default function Analytics() {
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-black tracking-tight">Platform Financials &amp; Growth</h1>
-        <p className="text-sm text-muted-foreground">
-          Live financial ledger — gross revenue, refunds, creator commissions, brand payouts, and true platform profit.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl font-black tracking-tight">Platform Financials &amp; Growth</h1>
+            {demoMode && (
+              <Badge variant="outline" className="border-amber-500/50 text-amber-400 bg-amber-500/10 text-xs px-2 py-0.5 animate-pulse">
+                Demo Preview Mode
+              </Badge>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Live financial ledger — gross revenue, refunds, creator commissions, brand payouts, and true platform profit.
+          </p>
+        </div>
+        <div>
+          <Button
+            type="button"
+            variant={demoMode ? "default" : "outline"}
+            size="sm"
+            onClick={() => setDemoMode((prev) => !prev)}
+            className={`gap-2 rounded-xl transition-all ${
+              demoMode
+                ? "bg-amber-500 hover:bg-amber-600 text-black font-semibold border-amber-400 shadow-lg shadow-amber-500/20"
+                : "border-border/60 hover:border-amber-500/50 hover:text-amber-400"
+            }`}
+          >
+            <FlaskConical size={15} />
+            {demoMode ? "Exit Demo Data" : "Preview Demo Data"}
+          </Button>
+        </div>
       </div>
 
       {/* ── Row 1: Core Financial KPIs ────────────────────────────────────── */}
@@ -256,7 +336,7 @@ export default function Analytics() {
         <KpiCard
           label="Total Money Refunded"
           value={`-${fmt(refunds)} TND`}
-          sub={`${financial?.refundsCount ?? 0} refunds · ${financial?.pendingRefundsCount ?? 0} open claim(s)`}
+          sub={`${activeFinancial?.refundsCount ?? 0} refunds · ${activeFinancial?.pendingRefundsCount ?? 0} open claim(s)`}
           icon={<Undo2 className="h-4 w-4 text-rose-500" />}
           color="text-rose-500"
           trend="down"
@@ -264,7 +344,7 @@ export default function Analytics() {
         <KpiCard
           label="All Commissions Disbursed"
           value={`-${fmt(commStats.totalDisbursed)} TND`}
-          sub={`${fmt(commStats.totalPending)} TND pending · ${withdrawals.filter(w => w.status === "completed").length} paid out`}
+          sub={`${fmt(commStats.totalPending)} TND pending · ${activeWithdrawals.filter(w => w.status === "completed").length} paid out`}
           icon={<BadgePercent className="h-4 w-4 text-amber-500" />}
           color="text-amber-400"
           trend="down"
@@ -287,7 +367,7 @@ export default function Analytics() {
               <ShoppingBag size={14} className="text-blue-400" />
               <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">Orders</span>
             </div>
-            <div className="text-xl font-black">{isLoading ? "—" : (dashMetrics?.totalOrders ?? totalOrders).toLocaleString()}</div>
+            <div className="text-xl font-black">{isLoading ? "—" : (activeDashMetrics?.totalOrders ?? totalOrders).toLocaleString()}</div>
             <div className="text-[10px] text-muted-foreground mt-0.5">total placed</div>
           </CardContent>
         </Card>
@@ -309,7 +389,7 @@ export default function Analytics() {
               <Users size={14} className="text-cyan-400" />
               <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wide">Users</span>
             </div>
-            <div className="text-xl font-black">{isLoading ? "—" : (dashMetrics?.totalUsers ?? 0).toLocaleString()}</div>
+            <div className="text-xl font-black">{isLoading ? "—" : (activeDashMetrics?.totalUsers ?? 0).toLocaleString()}</div>
             <div className="text-[10px] text-muted-foreground mt-0.5">registered accounts</div>
           </CardContent>
         </Card>
@@ -364,7 +444,7 @@ export default function Analytics() {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={fullAnalytics}>
+                <LineChart data={activeMonthly}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={11} />
                   <YAxis stroke="var(--muted-foreground)" fontSize={11} />
@@ -389,7 +469,7 @@ export default function Analytics() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
-              <AreaChart data={fullAnalytics}>
+              <AreaChart data={activeMonthly}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={11} />
                 <YAxis stroke="var(--muted-foreground)" fontSize={11} />
@@ -417,7 +497,7 @@ export default function Analytics() {
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={fullAnalytics} barSize={24}>
+                <BarChart data={activeMonthly} barSize={24}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={11} />
                   <YAxis stroke="var(--muted-foreground)" fontSize={11} allowDecimals={false} />
@@ -437,9 +517,9 @@ export default function Analytics() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {wLoading || statusPie.length === 0 ? (
+            {isWithdrawalsLoading || statusPie.length === 0 ? (
               <div className="h-[220px] flex items-center justify-center text-xs text-muted-foreground">
-                {wLoading ? "Loading…" : "No withdrawal requests yet."}
+                {isWithdrawalsLoading ? "Loading…" : "No withdrawal requests yet."}
               </div>
             ) : (
               <div className="flex items-center gap-4">
@@ -476,7 +556,7 @@ export default function Analytics() {
                     </div>
                   ))}
                   <div className="mt-2 pt-2 border-t border-border/40 text-muted-foreground">
-                    Total: <span className="text-foreground font-bold">{withdrawals.length}</span>
+                    Total: <span className="text-foreground font-bold">{activeWithdrawals.length}</span>
                   </div>
                 </div>
               </div>
@@ -518,7 +598,7 @@ export default function Analytics() {
                 Total Disbursed
               </div>
               <div className="text-xl font-black" style={{ color: activeView.accentColor }}>
-                {wLoading ? "—" : `${fmt(activeView.paid)} TND`}
+                {isWithdrawalsLoading ? "—" : `${fmt(activeView.paid)} TND`}
               </div>
               <div className="text-[10px] text-muted-foreground mt-0.5">
                 {activeView.paidCount} completed payout{activeView.paidCount !== 1 ? "s" : ""}
@@ -532,7 +612,7 @@ export default function Analytics() {
                 Pending / Approved
               </div>
               <div className="text-xl font-black text-amber-400">
-                {wLoading ? "—" : `${fmt(activeView.pending)} TND`}
+                {isWithdrawalsLoading ? "—" : `${fmt(activeView.pending)} TND`}
               </div>
               <div className="text-[10px] text-muted-foreground mt-0.5">
                 {activeView.pendingCount} request{activeView.pendingCount !== 1 ? "s" : ""} awaiting
@@ -546,7 +626,7 @@ export default function Analytics() {
                 Total Requests
               </div>
               <div className="text-xl font-black text-foreground">
-                {wLoading ? "—" : activeView.totalCount}
+                {isWithdrawalsLoading ? "—" : activeView.totalCount}
               </div>
               <div className="text-[10px] text-muted-foreground mt-0.5">
                 {activeView.rejectedCount} rejected
@@ -560,7 +640,7 @@ export default function Analytics() {
                 Avg Payout
               </div>
               <div className="text-xl font-black text-foreground">
-                {wLoading || activeView.paidCount === 0
+                {isWithdrawalsLoading || activeView.paidCount === 0
                   ? "—"
                   : `${fmt(activeView.paid / activeView.paidCount)} TND`}
               </div>
@@ -587,7 +667,7 @@ export default function Analytics() {
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-            {wLoading ? (
+            {isWithdrawalsLoading ? (
               <div className="h-32 flex items-center justify-center text-xs text-muted-foreground">Loading…</div>
             ) : (
               <WithdrawalTable rows={activeView.rows} />
