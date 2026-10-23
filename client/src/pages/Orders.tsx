@@ -8,6 +8,8 @@ import { trpc } from "@/lib/trpc";
 import { ShortId, shortId } from "@/components/ShortId";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { exportOrdersForCarrierExcel } from "@/lib/reports";
+import { Download, FileSpreadsheet } from "lucide-react";
 import {
   Search, Package, Truck, MapPin, RefreshCw, X, ChevronDown, ChevronRight,
   Eye, Check, Clock, CheckCircle2, AlertCircle, Ban, Undo2, ArrowUpRight, DollarSign, ShieldCheck, ShoppingCart
@@ -134,12 +136,40 @@ export default function Orders() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-black tracking-tight">{t("orders.title")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("orders.subtitle")}
-        </p>
+      {/* Header with Carrier Export Action */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-black tracking-tight">{t("orders.title")}</h1>
+          <p className="text-sm text-muted-foreground">
+            {t("orders.subtitle")}
+          </p>
+        </div>
+        <div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              try {
+                exportOrdersForCarrierExcel(filteredOrders);
+                toast.success(
+                  language === "fr"
+                    ? "Bordereau de livraison Excel téléchargé avec succès !"
+                    : "Carrier delivery sheet downloaded successfully!"
+                );
+              } catch (e) {
+                toast.error("Erreur lors de l'exportation du bordereau");
+              }
+            }}
+            disabled={filteredOrders.length === 0}
+            className="gap-2 rounded-xl border-border/60 hover:border-blue-500/50 hover:text-blue-400 shadow-xs"
+          >
+            <FileSpreadsheet size={15} className="text-blue-400" />
+            <span>
+              {language === "fr" ? "Exporter Bordereau Livraisons (Excel)" : "Export Carrier Manifest (Excel)"}
+            </span>
+          </Button>
+        </div>
       </div>
 
       {/* 4 Overview Metrics Cards */}

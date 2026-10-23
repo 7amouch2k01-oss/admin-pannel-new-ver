@@ -14,6 +14,9 @@ import {
 } from "recharts";
 import { trpc } from "@/lib/trpc";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { generateFinancialReportPDF } from "@/lib/reports";
+import { Download, FileText } from "lucide-react";
+import { toast } from "sonner";
 import type { AdminWithdrawal } from "@/lib/api/types";
 import {
   DollarSign, TrendingUp, TrendingDown, Undo2, BadgePercent, Sparkles,
@@ -373,7 +376,38 @@ export default function Analytics() {
             {t("analytics.subtitle")}
           </p>
         </div>
-        <div>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              try {
+                generateFinancialReportPDF({
+                  gross,
+                  refunds,
+                  creatorCommissions: commStats.userPaid,
+                  brandPayouts: commStats.brandPaid,
+                  netProfit: platformProfit,
+                  totalOrders: activeDashMetrics?.totalOrders ?? totalOrders,
+                  totalUsers: activeDashMetrics?.totalUsers ?? 0,
+                  periodLabel: demoMode ? "Simulation Démo 2026" : "Clôture Réelle 2026",
+                });
+                toast.success(
+                  language === "fr"
+                    ? "Rapport financier PDF généré avec succès !"
+                    : "Financial PDF statement downloaded!"
+                );
+              } catch (e: any) {
+                toast.error("Erreur lors de la génération du rapport");
+              }
+            }}
+            className="gap-2 rounded-xl border-border/60 hover:border-emerald-500/50 hover:text-emerald-400 shadow-xs"
+          >
+            <FileText size={15} className="text-emerald-400" />
+            <span>{language === "fr" ? "Exporter PDF Officiel" : "Export PDF Statement"}</span>
+          </Button>
+
           <Button
             type="button"
             variant={demoMode ? "default" : "outline"}
