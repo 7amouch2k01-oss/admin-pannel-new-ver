@@ -28,6 +28,9 @@ import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { CommandPalette } from "./CommandPalette";
+import { NotificationHub } from "./NotificationHub";
+import { Search } from "lucide-react";
 
 const menuItems = [
   { icon: LayoutDashboard, key: "nav.overview", defaultLabel: "Overview", path: "/admin", perm: "dashboard" },
@@ -152,7 +155,7 @@ function DashboardLayoutContent({
   setSidebarWidth,
 }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [location, setLocation] = useLocation();
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
@@ -401,7 +404,36 @@ function DashboardLayoutContent({
             </div>
           </div>
         )}
-        <main className="flex-1 p-4">{children}</main>
+                {/* Top Operational Bar */}
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b border-border/40 bg-background/80 px-4 backdrop-blur-xl transition-all">
+          <div className="flex items-center gap-3">
+            <SidebarTrigger className="h-8 w-8 rounded-lg" />
+            
+            {/* Quick Spotlight Search trigger */}
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent("styly_open_command_palette"))}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border/60 bg-muted/40 hover:bg-muted/70 text-xs text-muted-foreground hover:text-foreground transition-all shadow-sm group"
+            >
+              <Search className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+              <span className="hidden sm:inline">
+                {language === "fr" ? "Recherche rapide..." : "Quick command search..."}
+              </span>
+              <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded bg-background px-1.5 py-0.5 text-[10px] font-mono font-bold text-muted-foreground border border-border/60 shadow-xs">
+                ⌘K
+              </kbd>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Live Operational Notification Hub */}
+            <NotificationHub />
+            <LanguageToggleButton />
+            <ThemeToggleButton />
+          </div>
+        </header>
+
+        <CommandPalette />
+        <main className="flex-1 p-4 sm:p-6">{children}</main>
       </SidebarInset>
     </>
   );
