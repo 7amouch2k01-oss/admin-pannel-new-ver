@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { AuditTrailView } from "@/components/AuditTrailView";
 import {
   LogOut, Save, ShieldCheck, Mail, Bell, Key, Database, RefreshCw,
   CheckCircle2, Globe, Crown, Lock, Sliders, DollarSign, Cpu, Users,
@@ -893,6 +894,8 @@ export default function Settings() {
                     </div>
                   </CardContent>
                 </Card>
+                {/* Immutable Admin Action Audit Trail */}
+                <AuditTrailView />
               </div>
             </div>
           )}
