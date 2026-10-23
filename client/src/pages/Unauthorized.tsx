@@ -2,9 +2,11 @@ import { Button } from "@/components/ui/button";
 import { getLoginUrl } from "@/const";
 import { Lock } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useState } from "react";
 
 export default function Unauthorized() {
+  const { t } = useLanguage();
   const { logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -26,10 +28,10 @@ export default function Unauthorized() {
             <Lock className="h-8 w-8 text-destructive" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-center">
-            Access Denied
+            {t("unauthorized.title")}
           </h1>
           <p className="text-base text-muted-foreground text-center">
-            You do not have the required permissions to access the Styly Admin Dashboard. Only administrators can access this area.
+            {t("unauthorized.desc")}
           </p>
         </div>
         <div className="flex gap-3 w-full">
@@ -39,14 +41,14 @@ export default function Unauthorized() {
             onClick={() => window.history.back()}
             disabled={isLoggingOut}
           >
-            Go Back
+            {t("unauthorized.goBack")}
           </Button>
           <Button
             className="flex-1"
             onClick={handleSignInAsAdmin}
             disabled={isLoggingOut}
           >
-            {isLoggingOut ? "Loading..." : "Sign in as Admin"}
+            {isLoggingOut ? t("unauthorized.loading") : t("unauthorized.signInAdmin")}
           </Button>
         </div>
       </div>

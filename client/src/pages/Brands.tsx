@@ -210,20 +210,20 @@ export default function Brands() {
         <Card className="border border-border/50 bg-card/50 backdrop-blur rounded-2xl">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">Registered Brands</CardTitle>
+              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">{t("brands.registeredBrands")}</CardTitle>
               <Building2 className="h-4 w-4 text-purple-500" />
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-black">{isLoading ? <Skeleton className="h-8 w-16" /> : totalBrands}</div>
-            <p className="text-[11px] text-muted-foreground mt-1">Partners in platform database</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{t("brands.registeredBrandsSub")}</p>
           </CardContent>
         </Card>
 
         <Card className="border border-border/50 bg-card/50 backdrop-blur rounded-2xl">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">Active Stores</CardTitle>
+              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">{t("brands.activeBrands")}</CardTitle>
               <CheckCircle2 className="h-4 w-4 text-emerald-500" />
             </div>
           </CardHeader>
@@ -236,7 +236,7 @@ export default function Brands() {
         <Card className="border border-border/50 bg-card/50 backdrop-blur rounded-2xl">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">Pending Brand Payouts</CardTitle>
+              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">{t("brands.pendingPayouts")}</CardTitle>
               <Clock className="h-4 w-4 text-amber-500" />
             </div>
           </CardHeader>
@@ -251,7 +251,7 @@ export default function Brands() {
         <Card className="border border-border/50 bg-card/50 backdrop-blur rounded-2xl">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">Total Brand Profits Paid</CardTitle>
+              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">{t("brands.brandPayouts")}</CardTitle>
               <DollarSign className="h-4 w-4 text-purple-500" />
             </div>
           </CardHeader>
@@ -268,10 +268,10 @@ export default function Brands() {
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <TabsList className="rounded-xl p-1 bg-muted/60 overflow-x-auto max-w-full">
             <TabsTrigger value="all" className="rounded-lg text-xs font-bold">
-              All Brands ({brands.length})
+              {t("brands.allBrands")} ({brands.length})
             </TabsTrigger>
             <TabsTrigger value="pending" className="rounded-lg text-xs font-bold relative">
-              Pending Applications
+              {t("brands.pendingRequests")}
               {pendingRequests.length > 0 && (
                 <span className="ml-1.5 px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[10px] font-black">
                   {pendingRequests.length}
@@ -280,7 +280,7 @@ export default function Brands() {
             </TabsTrigger>
             <TabsTrigger value="withdrawals" className="rounded-lg text-xs font-bold relative">
               <DollarSign className="h-3.5 w-3.5 text-purple-500 mr-1 inline" />
-              Brand Withdrawals ({brandWithdrawals.length})
+              {t("brands.brandPayouts")} ({brandWithdrawals.length})
               {pendingBrandWithdrawalsCount > 0 && (
                 <span className="ml-1.5 px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-black animate-pulse">
                   {pendingBrandWithdrawalsCount}
@@ -293,7 +293,7 @@ export default function Brands() {
             <div className="relative flex-1 sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search brands or payouts..."
+                placeholder={t("brands.searchPlaceholder")}
                 className="pl-10 rounded-xl"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -396,7 +396,7 @@ export default function Brands() {
           </div>
         </TabsContent>
 
-        {/* Pending Applications Tab */}
+        {/* {t("brands.pendingRequests")} Tab */}
         <TabsContent value="pending" className="space-y-4">
           <div className="space-y-3">
             {pendingRequests.length === 0 ? (

@@ -440,7 +440,7 @@ export default function Users() {
           <Card className="border border-border/50 bg-card/50 backdrop-blur rounded-2xl">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">Pending Creator Payouts</CardTitle>
+                <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">{t("users.pendingPayouts")}</CardTitle>
                 <Clock className="h-4 w-4 text-amber-500" />
               </div>
             </CardHeader>
@@ -502,7 +502,7 @@ export default function Users() {
           <Card className="border border-border/50 bg-card/50 backdrop-blur rounded-2xl">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">Total Registered</CardTitle>
+                <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">{t("users.totalUsers")}</CardTitle>
                 <User className="h-4 w-4 text-blue-500" />
               </div>
             </CardHeader>
@@ -515,7 +515,7 @@ export default function Users() {
           <Card className="border border-border/50 bg-card/50 backdrop-blur rounded-2xl">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">Brands & Creators</CardTitle>
+                <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">{t("users.creators")}</CardTitle>
                 <Flame className="h-4 w-4 text-orange-500" />
               </div>
             </CardHeader>
@@ -528,7 +528,7 @@ export default function Users() {
           <Card className="border border-border/50 bg-card/50 backdrop-blur rounded-2xl">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">Normal Shoppers</CardTitle>
+                <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">{t("users.shoppers")}</CardTitle>
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
               </div>
             </CardHeader>
@@ -645,11 +645,11 @@ export default function Users() {
                   <TableHead className="w-[100px]">ID</TableHead>
                   <TableHead className="w-[240px]">Requester / Identity</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Amount</TableHead>
+                  <TableHead>{t("users.wdThAmount")}</TableHead>
                   <TableHead>Payment Method & Account</TableHead>
                   <TableHead>Requested</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t("users.thStatus")}</TableHead>
+                  <TableHead className="text-right">{t("users.thActions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -838,7 +838,7 @@ export default function Users() {
                   <TableHead className="w-[280px]">Account / Identity</TableHead>
                   <TableHead>{activeTab === "team" ? "Admin Role & Permissions" : "User Type"}</TableHead>
                   <TableHead>{activeTab === "team" ? "Permissions Summary" : "Creator Grade / XP"}</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t("users.thStatus")}</TableHead>
                   <TableHead>Registered</TableHead>
                   <TableHead className="text-right">Manage</TableHead>
                 </TableRow>
@@ -1025,7 +1025,7 @@ export default function Users() {
                                     <>
                                       <DropdownMenuItem onClick={() => handleOpenPermissions(user)} className="text-xs font-semibold text-purple-500 cursor-pointer">
                                         <Key className="h-3.5 w-3.5 mr-1.5" />
-                                        Manage Permissions
+                                        {t("users.managePermissions")}
                                       </DropdownMenuItem>
                                       <DropdownMenuItem onClick={() => handleToggleRole(user)} className="text-xs font-semibold text-amber-500 cursor-pointer">
                                         Demote to App User

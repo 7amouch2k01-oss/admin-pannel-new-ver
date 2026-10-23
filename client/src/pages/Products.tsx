@@ -27,6 +27,7 @@ import { ShortId } from "@/components/ShortId";
 import { mediaUrlOr, onImageError, POST_IMAGE_FALLBACK } from "@/lib/media";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
@@ -43,6 +44,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function Products() {
+  const { t, language } = useLanguage();
   const { data: posts = [], isLoading, refetch } = trpc.posts.adminList.useQuery();
   const updateStatus = trpc.posts.updateStatus.useMutation();
   const deleteMutation = trpc.posts.delete.useMutation();
@@ -93,9 +95,9 @@ export default function Products() {
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* Header */}
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-black tracking-tight">Posts & Outfits Moderation</h1>
+        <h1 className="text-3xl font-black tracking-tight">{t("posts.title")}</h1>
         <p className="text-sm text-muted-foreground">
-          Monitor user-generated fashion posts, inspect tagged garments, and inspect engagement analytics.
+          {t("posts.subtitle")}
         </p>
       </div>
 
@@ -104,52 +106,52 @@ export default function Products() {
         <Card className="border border-border/50 bg-card/50 backdrop-blur rounded-2xl">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">Total Outfits</CardTitle>
+              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">{t("posts.totalOutfits")}</CardTitle>
               <ImageIcon className="h-4 w-4 text-rose-500" />
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-black">{isLoading ? <Skeleton className="h-8 w-16" /> : total}</div>
-            <p className="text-[11px] text-muted-foreground mt-1">Total posted looks in feed</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{t("posts.totalOutfitsSub")}</p>
           </CardContent>
         </Card>
 
         <Card className="border border-border/50 bg-card/50 backdrop-blur rounded-2xl">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">Active Visible</CardTitle>
+              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">{t("posts.activeVisible")}</CardTitle>
               <CheckCircle2 className="h-4 w-4 text-emerald-500" />
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-black text-emerald-500">{isLoading ? <Skeleton className="h-8 w-16" /> : active}</div>
-            <p className="text-[11px] text-muted-foreground mt-1">Live in consumer discovery</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{t("posts.activeVisibleSub")}</p>
           </CardContent>
         </Card>
 
         <Card className="border border-border/50 bg-card/50 backdrop-blur rounded-2xl">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">Total Likes & Hypes</CardTitle>
+              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">{t("posts.totalLikes")}</CardTitle>
               <Heart className="h-4 w-4 text-rose-500 fill-rose-500" />
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-black text-rose-500">{isLoading ? <Skeleton className="h-8 w-16" /> : totalLikes}</div>
-            <p className="text-[11px] text-muted-foreground mt-1">Social interactions logged</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{t("posts.totalLikesSub")}</p>
           </CardContent>
         </Card>
 
         <Card className="border border-border/50 bg-card/50 backdrop-blur rounded-2xl">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">Flagged For Review</CardTitle>
+              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">{t("posts.flaggedReview")}</CardTitle>
               <AlertTriangle className="h-4 w-4 text-amber-500" />
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-black text-amber-500">{isLoading ? <Skeleton className="h-8 w-16" /> : flagged}</div>
-            <p className="text-[11px] text-muted-foreground mt-1">Posts requiring admin check</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{t("posts.flaggedReviewSub")}</p>
           </CardContent>
         </Card>
       </div>
@@ -159,7 +161,7 @@ export default function Products() {
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by caption, creator name, category, or brand..."
+            placeholder={t("posts.searchPlaceholder")}
             className="pl-10 rounded-xl"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -167,6 +169,7 @@ export default function Products() {
         </div>
         <div className="flex gap-2">
           {["all", "active", "hidden", "flagged"].map((st) => (
+            // filter button
             <Button
               key={st}
               variant={statusFilter === st ? "default" : "outline"}
@@ -174,7 +177,7 @@ export default function Products() {
               onClick={() => setStatusFilter(st)}
               className="rounded-xl capitalize text-xs font-bold"
             >
-              {st}
+              {t(`posts.filter${st.charAt(0).toUpperCase() + st.slice(1)}`, st)}
             </Button>
           ))}
         </div>
@@ -186,13 +189,13 @@ export default function Products() {
           <Table>
             <TableHeader>
               <TableRow className="border-border/50 hover:bg-transparent">
-                <TableHead className="w-[100px]">Photo</TableHead>
-                <TableHead>Creator / Caption</TableHead>
-                <TableHead>Tagged Garment</TableHead>
-                <TableHead>Social Interactions</TableHead>
-                <TableHead>Revenue</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="w-[100px]">{t("posts.thPhoto")}</TableHead>
+                <TableHead>{t("posts.thCreator")}</TableHead>
+                <TableHead>{t("posts.thTagged")}</TableHead>
+                <TableHead>{t("posts.thSocial")}</TableHead>
+                <TableHead>{t("posts.thRevenue")}</TableHead>
+                <TableHead>{t("posts.thStatus")}</TableHead>
+                <TableHead className="text-right">{t("posts.thActions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -211,7 +214,7 @@ export default function Products() {
               ) : filtered.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                    No posts match your filters.
+                    {t("posts.noMatch")}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -277,7 +280,7 @@ export default function Products() {
                           {revenue > 0 ? `${revenue.toFixed(2)} TND` : <span className="text-muted-foreground font-normal">—</span>}
                         </div>
                         <div className="text-[11px] text-muted-foreground mt-0.5">
-                          {conversions} {conversions === 1 ? "order" : "orders"}
+                          {conversions} {conversions === 1 ? t("posts.order") : t("posts.orders")}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -293,24 +296,24 @@ export default function Products() {
                           <DropdownMenuContent align="end" className="w-44 rounded-xl shadow-xl">
                             <DropdownMenuItem onClick={() => setSelectedPost(post)} className="text-xs font-semibold cursor-pointer">
                               <Eye className="h-3.5 w-3.5 mr-1.5" />
-                              View Post & Analytics
+                              {t("posts.viewAnalytics")}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleStatus(post, "active")} className="text-xs font-semibold text-emerald-500 cursor-pointer">
-                              Mark as Active
+                              {t("posts.markActive")}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleStatus(post, "hidden")} className="text-xs font-semibold text-slate-400 cursor-pointer">
                               <EyeOff className="h-3.5 w-3.5 mr-1.5" />
-                              Hide from Feed
+                              {t("posts.hideFromFeed")}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleStatus(post, "flagged")} className="text-xs font-semibold text-amber-500 cursor-pointer">
                               <Flag className="h-3.5 w-3.5 mr-1.5" />
-                              Flag Post
+                              {t("posts.flagPost")}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => setPostToDelete(post)} className="text-xs font-semibold text-rose-500 cursor-pointer">
                               <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                              Delete Post
+                              {t("posts.deletePost")}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -330,7 +333,7 @@ export default function Products() {
           <DialogContent className="max-w-3xl rounded-3xl p-6 max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-lg font-bold flex items-center justify-between">
-                <span className="min-w-0 truncate">Post Details &amp; Commerce Analytics</span>
+                <span className="min-w-0 truncate">{t("posts.detailTitle")}</span>
                 <ShortId id={selectedPost.id} className="text-sm font-normal text-muted-foreground shrink-0" />
                 <StatusBadge status={selectedPost.status || "active"} />
               </DialogTitle>
@@ -363,9 +366,9 @@ export default function Products() {
                 </div>
 
                 <div>
-                  <p className="text-xs font-bold uppercase text-muted-foreground">Caption & Tags</p>
+                  <p className="text-xs font-bold uppercase text-muted-foreground">{t("posts.captionTags")}</p>
                   <p className="text-xs text-foreground bg-muted/40 p-2.5 rounded-xl border border-border/40 mt-1">
-                    {selectedPost.caption || "No caption written."}
+                    {selectedPost.caption || t("posts.noCaption")}
                   </p>
                 </div>
 
@@ -397,13 +400,13 @@ export default function Products() {
                 <div className="space-y-2 pt-2">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1.5">
-                      <Tag className="h-3.5 w-3.5 text-primary" /> Items Added to Post for Sale ({selectedPost.itemsForSale?.length ?? 0})
+                      <Tag className="h-3.5 w-3.5 text-primary" /> {t("posts.itemsForSale")} ({selectedPost.itemsForSale?.length ?? 0})
                     </p>
                   </div>
                   
                   <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                     {(selectedPost.itemsForSale ?? []).length === 0 && (
-                      <p className="text-xs text-muted-foreground italic py-2">No items tagged on this post.</p>
+                      <p className="text-xs text-muted-foreground italic py-2">{t("posts.noItems")}</p>
                     )}
                     {(selectedPost.itemsForSale ?? []).map((item: any, idx: number) => (
                       <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-muted/40 border border-border/40 hover:border-primary/20 transition-all">
@@ -423,7 +426,7 @@ export default function Products() {
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-xs font-black text-primary">{item.price || 0} TND</p>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-500 font-bold">For Sale</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-500 font-bold">{t("posts.forSale")}</span>
                         </div>
                       </div>
                     ))}
@@ -438,7 +441,7 @@ export default function Products() {
                     className="flex-1 rounded-xl text-xs font-semibold"
                     onClick={() => handleStatus(selectedPost, selectedPost.status === "active" ? "hidden" : "active")}
                   >
-                    {selectedPost.status === "active" ? "Hide from Feed" : "Make Active"}
+                    {selectedPost.status === "active" ? t("posts.hideFromFeed") : t("posts.makeActive")}
                   </Button>
                   <Button
                     size="sm"
@@ -449,7 +452,7 @@ export default function Products() {
                       setSelectedPost(null);
                     }}
                   >
-                    Delete Post
+                    {t("posts.deletePost")}
                   </Button>
                 </div>
               </div>
@@ -462,15 +465,15 @@ export default function Products() {
       <AlertDialog open={!!postToDelete} onOpenChange={() => setPostToDelete(null)}>
         <AlertDialogContent className="rounded-3xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this outfit post?</AlertDialogTitle>
+            <AlertDialogTitle>{t("posts.deleteTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this post from the live feed and database.
+              {t("posts.deleteDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex justify-end gap-3 mt-4">
             <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90 rounded-xl">
-              Confirm Delete
+              {t("posts.confirmDelete")}
             </AlertDialogAction>
           </div>
         </AlertDialogContent>

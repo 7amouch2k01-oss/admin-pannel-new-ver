@@ -18,14 +18,14 @@ import {
 
 // ─── Status Configs ───────────────────────────────────────────────────────────
 
-const ORDER_STATUS_CFG: Record<string, { label: string; cls: string }> = {
-  pending:          { label: "Pending",          cls: "bg-gray-500/20 text-gray-400 border-gray-500/30" },
-  processing:       { label: "Processing",       cls: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
-  shipped:          { label: "Shipped",          cls: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" },
-  delivered:        { label: "Delivered",        cls: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
-  refund_requested: { label: "Refund Requested", cls: "bg-amber-500/20 text-amber-400 border-amber-500/30 animate-pulse" },
-  refunded:         { label: "Refunded",         cls: "bg-purple-500/20 text-purple-400 border-purple-500/30" },
-  canceled:         { label: "Canceled",         cls: "bg-rose-500/20 text-rose-400 border-rose-500/30" },
+const ORDER_STATUS_CFG: Record<string, { labelKey: string; cls: string }> = {
+  pending:          { labelKey: "orders.statusPending",    cls: "bg-gray-500/20 text-gray-400 border-gray-500/30" },
+  processing:       { labelKey: "orders.statusProcessing", cls: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+  shipped:          { labelKey: "orders.statusShipped",    cls: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30" },
+  delivered:        { labelKey: "orders.statusDelivered",  cls: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+  refund_requested: { labelKey: "orders.refundRequested",  cls: "bg-amber-500/20 text-amber-400 border-amber-500/30 animate-pulse" },
+  refunded:         { labelKey: "orders.statusRefunded",   cls: "bg-purple-500/20 text-purple-400 border-purple-500/30" },
+  canceled:         { labelKey: "orders.statusCanceled",   cls: "bg-rose-500/20 text-rose-400 border-rose-500/30" },
 };
 
 const SHIP_STATUS_CFG: Record<string, { label: string; cls: string; icon: any }> = {
@@ -147,46 +147,46 @@ export default function Orders() {
         <Card className="border border-border/50 bg-card/50 backdrop-blur rounded-2xl">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">Total Placed</CardTitle>
+              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">{t("orders.totalPlaced")}</CardTitle>
               <Package className="h-4 w-4 text-blue-500" />
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-black">{isLoading ? <Skeleton className="h-8 w-16" /> : totalOrders}</div>
-            <p className="text-[11px] text-muted-foreground mt-1">Gross volume: {totalGrossVolume.toFixed(0)} TND</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{t("orders.grossVolume")}: {totalGrossVolume.toFixed(0)} TND</p>
           </CardContent>
         </Card>
 
         <Card className="border border-border/50 bg-card/50 backdrop-blur rounded-2xl">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">In Transit / Active</CardTitle>
+              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">{t("orders.activePipeline")}</CardTitle>
               <Truck className="h-4 w-4 text-amber-500" />
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-black text-amber-500">{isLoading ? <Skeleton className="h-8 w-16" /> : pendingOrders}</div>
-            <p className="text-[11px] text-muted-foreground mt-1">Brand packed / out for delivery</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{t("orders.activePipelineSub")}</p>
           </CardContent>
         </Card>
 
         <Card className="border border-border/50 bg-card/50 backdrop-blur rounded-2xl">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">Delivered & Verified</CardTitle>
+              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">{t("orders.delivered")}</CardTitle>
               <CheckCircle2 className="h-4 w-4 text-emerald-500" />
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-black text-emerald-500">{isLoading ? <Skeleton className="h-8 w-16" /> : deliveredOrders}</div>
-            <p className="text-[11px] text-muted-foreground mt-1">Received by customer</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{t("orders.deliveredSub")}</p>
           </CardContent>
         </Card>
 
         <Card className="border border-border/50 bg-card/50 backdrop-blur rounded-2xl">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">Refunds & Claims</CardTitle>
+              <CardTitle className="text-xs font-semibold text-muted-foreground uppercase">{t("orders.refundRequests")}</CardTitle>
               <Undo2 className="h-4 w-4 text-purple-500" />
             </div>
           </CardHeader>
@@ -218,14 +218,14 @@ export default function Orders() {
         </div>
         <div className="flex gap-1.5 flex-wrap">
           {[
-            { id: "all", label: "All" },
-            { id: "pending", label: "Pending" },
-            { id: "processing", label: "Processing" },
-            { id: "shipped", label: "Shipped" },
-            { id: "delivered", label: "Delivered" },
-            { id: "refund_requested", label: `Refund Claims ${refundRequestedCount > 0 ? `(${refundRequestedCount})` : ""}` },
-            { id: "refunded", label: "Refunded" },
-            { id: "canceled", label: "Canceled" },
+            { id: "all", label: t("orders.allStatuses") },
+            { id: "pending", label: t("orders.statusPending") },
+            { id: "processing", label: t("orders.statusProcessing") },
+            { id: "shipped", label: t("orders.statusShipped") },
+            { id: "delivered", label: t("orders.statusDelivered") },
+            { id: "refund_requested", label: `${t("orders.refundRequests")} ${refundRequestedCount > 0 ? `(${refundRequestedCount})` : ""}` },
+            { id: "refunded", label: t("orders.statusRefunded") },
+            { id: "canceled", label: t("orders.statusCanceled") },
           ].map((st) => (
             <Button
               key={st.id}
@@ -248,7 +248,7 @@ export default function Orders() {
           [...Array(3)].map((_, i) => <Skeleton key={i} className="h-32 w-full rounded-3xl" />)
         ) : filteredOrders.length === 0 ? (
           <Card className="border border-dashed border-border/50 bg-card/40 rounded-3xl py-12 text-center text-muted-foreground">
-            No orders match your filter.
+            {t("orders.noOrders")}
           </Card>
         ) : (
           filteredOrders.map((order: any) => {
@@ -275,7 +275,7 @@ export default function Orders() {
                           <p className="font-bold text-sm text-foreground truncate">{order.customerName}</p>
                           <ShortId id={order.id} className="text-[11px] text-muted-foreground shrink-0" />
                           <Badge variant="outline" className={`font-bold ${orderCfg.cls}`}>
-                            {orderCfg.label}
+                            {t(orderCfg.labelKey, order.status)}
                           </Badge>
                           <Badge variant="secondary" className="font-bold text-[10px] uppercase">
                             {order.paymentMethod === "cod" ? "Pay When Delivered (COD)" : order.paymentMethod === "d17" ? "D17 Wallet" : order.paymentMethod === "flouci" ? "Flouci" : "Bank Card"}
@@ -289,7 +289,7 @@ export default function Orders() {
 
                     <div className="flex items-center gap-3 sm:ml-auto flex-wrap justify-end">
                       <div className="text-right mr-2">
-                        <p className="text-[10px] text-muted-foreground uppercase font-bold">Total Bill</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">{t("orders.total")}</p>
                         <p className="text-lg font-black text-foreground font-mono">{(order.totalAmount ?? 0).toFixed(2)} TND</p>
                       </div>
 
@@ -302,7 +302,7 @@ export default function Orders() {
                           className="rounded-xl text-xs font-bold text-rose-500 hover:bg-rose-500/10 hover:text-rose-600"
                         >
                           <Ban size={13} className="mr-1" />
-                          Cancel Order
+                          {t("orders.cancelOrder")}
                         </Button>
                       )}
 
@@ -314,7 +314,7 @@ export default function Orders() {
                             className="rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white"
                           >
                             <Check size={13} className="mr-1" />
-                            Approve Refund
+                            {t("orders.processRefund")}
                           </Button>
                           <Button
                             size="sm"
@@ -323,7 +323,7 @@ export default function Orders() {
                             className="rounded-xl text-xs font-bold border-border/60 text-muted-foreground"
                           >
                             <X size={13} className="mr-1" />
-                            Decline
+                            {t("orders.rejectRefund")}
                           </Button>
                         </div>
                       )}
@@ -335,7 +335,7 @@ export default function Orders() {
                         className="rounded-xl text-xs font-bold"
                       >
                         <Eye size={13} className="mr-1.5" />
-                        Details
+                        {t("orders.viewDetails")}
                       </Button>
                     </div>
                   </div>
