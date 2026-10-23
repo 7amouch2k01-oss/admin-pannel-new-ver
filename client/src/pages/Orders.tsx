@@ -9,6 +9,10 @@ import { ShortId, shortId } from "@/components/ShortId";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { exportOrdersForCarrierExcel } from "@/lib/reports";
+import { DisputeResolutionModal } from "@/components/DisputeResolutionModal";
+import { MessageSquare } from "lucide-react";
+import { TEST_DEMO_ORDERS } from "@/lib/test-data";
+import { FlaskConical } from "lucide-react";
 import { Download, FileSpreadsheet } from "lucide-react";
 import {
   Search, Package, Truck, MapPin, RefreshCw, X, ChevronDown, ChevronRight,
@@ -50,13 +54,19 @@ export default function Orders() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [demoTestMode, setDemoTestMode] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
 
   // Cancellation modal state
   const [cancelModalOrder, setCancelModalOrder] = useState<any | null>(null);
+  const [disputeModalOrder, setDisputeModalOrder] = useState<any | null>(null);
   const [cancelReason, setCancelReason] = useState("");
 
-  const filteredOrders = (orders as any[]).filter((o: any) => {
+  const effectiveOrders = demoTestMode
+    ? [...TEST_DEMO_ORDERS, ...(orders as any[])]
+    : (orders as any[]);
+
+  const filteredOrders = effectiveOrders.filter((o: any) => {
     const q = search.toLowerCase();
     const matchSearch =
       (o.customerName || "").toLowerCase().includes(q) ||
@@ -124,13 +134,13 @@ export default function Orders() {
   };
 
   // Overview metrics calculations
-  const totalOrders = (orders as any[]).length;
-  const pendingOrders = (orders as any[]).filter((o: any) => o.status === "pending" || o.status === "processing" || o.status === "shipped").length;
-  const deliveredOrders = (orders as any[]).filter((o: any) => o.status === "delivered").length;
-  const refundRequestedCount = (orders as any[]).filter((o: any) => o.status === "refund_requested").length;
-  const refundedOrders = (orders as any[]).filter((o: any) => o.status === "refunded").length;
-  const canceledOrders = (orders as any[]).filter((o: any) => o.status === "canceled").length;
-  const totalGrossVolume = (orders as any[])
+  const totalOrders = effectiveOrders.length;
+  const pendingOrders = effectiveOrders.filter((o: any) => o.status === "pending" || o.status === "processing" || o.status === "shipped").length;
+  const deliveredOrders = effectiveOrders.filter((o: any) => o.status === "delivered").length;
+  const refundRequestedCount = effectiveOrders.filter((o: any) => o.status === "refund_requested").length;
+  const refundedOrders = effectiveOrders.filter((o: any) => o.status === "refunded").length;
+  const canceledOrders = effectiveOrders.filter((o: any) => o.status === "canceled").length;
+  const totalGrossVolume = effectiveOrders
     .filter((o: any) => o.status !== "canceled")
     .reduce((acc: number, o: any) => acc + (o.subtotal || 0), 0);
 
@@ -144,7 +154,33 @@ export default function Orders() {
             {t("orders.subtitle")}
           </p>
         </div>
-        <div>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant={demoTestMode ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              setDemoTestMode((prev) => !prev);
+              toast.info(
+                !demoTestMode
+                  ? (language === "fr" ? "Mode Test Activé : Données d'essai injectées !" : "Test Mode Active: Demo orders populated!")
+                  : (language === "fr" ? "Mode Test Désactivé : Retour aux commandes réelles." : "Test Mode Inactive: Returned to live ledger.")
+              );
+            }}
+            className={`gap-2 rounded-xl text-xs font-bold transition-all ${
+              demoTestMode
+                ? "bg-amber-500 hover:bg-amber-600 text-black font-semibold border-amber-400 shadow-lg shadow-amber-500/20 animate-pulse"
+                : "border-border/60 hover:border-amber-500/50 hover:text-amber-400"
+            }`}
+          >
+            <FlaskConical size={14} />
+            <span>
+              {demoTestMode
+                ? (language === "fr" ? "Quitter Mode Test" : "Exit Test Mode")
+                : (language === "fr" ? "🧪 Tester Commandes & Livraisons" : "🧪 Test Orders & Dispatches")}
+            </span>
+          </Button>
+
           <Button
             type="button"
             variant="outline"
@@ -337,7 +373,16 @@ export default function Orders() {
                       )}
 
                       {isRefundRequested && (
-                        <div className="flex gap-1.5">
+                        <div className="flex gap-1.5 flex-wrap">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setDisputeModalOrder(order)}
+                            className="rounded-xl text-xs font-bold border-amber-500/40 text-amber-400 hover:bg-amber-500/10 gap-1"
+                          >
+                            <MessageSquare size={13} />
+                            <span>{language === "fr" ? "Ouvrir Litige / Chat" : "Dispute Chat"}</span>
+                          </Button>
                           <Button
                             size="sm"
                             onClick={() => handleAdminProcessRefund(order.id)}
@@ -472,6 +517,15 @@ export default function Orders() {
           })
         )}
       </div>
+
+      {/* Order Dispute Mediation Drawer Modal */}
+      <DisputeResolutionModal
+        order={disputeModalOrder}
+        open={!!disputeModalOrder}
+        onOpenChange={(open) => !open && setDisputeModalOrder(null)}
+        onResolveRefund={handleAdminProcessRefund}
+        onRejectRefund={handleAdminRejectRefund}
+      />
 
       {/* Admin Cancel Order Modal */}
       <Dialog open={!!cancelModalOrder} onOpenChange={() => setCancelModalOrder(null)}>
