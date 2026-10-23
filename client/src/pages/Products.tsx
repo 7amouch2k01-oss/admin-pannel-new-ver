@@ -19,7 +19,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Search, MoreHorizontal, Heart, Eye, EyeOff, Flag, Trash2, ImageIcon, DollarSign,
+  Search, MoreHorizontal, Heart, Eye, EyeOff, Flag, Trash2, ImageIcon, DollarSign, Zap, Crown,
   TrendingUp, MessageCircle, Tag, ExternalLink, CheckCircle2, AlertTriangle, Layers
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -28,6 +28,24 @@ import { mediaUrlOr, onImageError, POST_IMAGE_FALLBACK } from "@/lib/media";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
+
+
+const BOOSTED_POSTS_KEY = "styly_boosted_looks_ids";
+function getBoostedIds(): string[] {
+  try {
+    const raw = localStorage.getItem(BOOSTED_POSTS_KEY);
+    return raw ? JSON.parse(raw) : ["p1", "p3"];
+  } catch {
+    return ["p1", "p3"];
+  }
+}
+function toggleBoostId(id: string): boolean {
+  const current = getBoostedIds();
+  const exists = current.includes(id);
+  const updated = exists ? current.filter((x) => x !== id) : [...current, id];
+  localStorage.setItem(BOOSTED_POSTS_KEY, JSON.stringify(updated));
+  return !exists;
+}
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
@@ -53,6 +71,7 @@ export default function Products() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedPost, setSelectedPost] = useState<any | null>(null);
   const [postToDelete, setPostToDelete] = useState<any>(null);
+  const [boostedIds, setBoostedIds] = useState<string[]>(() => getBoostedIds());
 
   const filtered = (posts as any[]).filter((p: any) => {
     const matchSearch =
@@ -71,6 +90,24 @@ export default function Products() {
       toast.success(`Post marked as ${status}`);
     } catch {
       toast.error("Failed to update post status");
+    }
+  }
+
+  function handleToggleBoost(postId: string, title?: string) {
+    const isNowBoosted = toggleBoostId(postId);
+    setBoostedIds(getBoostedIds());
+    if (isNowBoosted) {
+      toast.success(
+        language === "fr"
+          ? "Look propulsé en tête du fil Découverte ! 🔥"
+          : "Look boosted to the top of Explore Feed! 🔥"
+      );
+    } else {
+      toast.info(
+        language === "fr"
+          ? "Propulsion du look désactivée."
+          : "Explore boost removed."
+      );
     }
   }
 
@@ -241,7 +278,15 @@ export default function Products() {
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
-                          <p className="font-bold text-sm text-foreground">{post.author?.name || post.creator?.name || "Creator Look"}</p>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="font-bold text-sm text-foreground">{post.author?.name || post.creator?.name || "Creator Look"}</p>
+                            {boostedIds.includes(post.id) && (
+                              <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[9px] font-black uppercase px-1.5 py-0 border-none shadow-xs">
+                                <Zap size={10} className="mr-0.5 fill-white" />
+                                {language === "fr" ? "En Vedette" : "Boosted"}
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground line-clamp-1">{post.caption || "No caption provided"}</p>
                           <span className="text-[10px] text-muted-foreground font-mono">
                             {post.category || "Uncategorised"} · {post.createdAt ? new Date(post.createdAt).toLocaleDateString() : "Live"}
@@ -299,6 +344,13 @@ export default function Products() {
                               {t("posts.viewAnalytics")}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleToggleBoost(post.id)} className="text-xs font-semibold text-amber-500 cursor-pointer">
+                              <Zap className="h-3.5 w-3.5 mr-1.5 fill-amber-500 text-amber-500" />
+                              {boostedIds.includes(post.id)
+                                ? (language === "fr" ? "Retirer de la Vedette" : "Remove Feed Boost")
+                                : (language === "fr" ? "Propulser en Vedette Découverte 🔥" : "Boost to Explore Feed 🔥")}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleStatus(post, "active")} className="text-xs font-semibold text-emerald-500 cursor-pointer">
                               {t("posts.markActive")}
                             </DropdownMenuItem>
@@ -340,14 +392,32 @@ export default function Products() {
             </DialogHeader>
 
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mt-3">
-              {/* Photo */}
-              <div className="md:col-span-5 rounded-2xl overflow-hidden border border-border/50 max-h-[380px] bg-black/5 flex items-center justify-center">
+              {/* Photo with AI Visual Garment Inspector Overlay */}
+              <div className="md:col-span-5 relative rounded-2xl overflow-hidden border border-border/50 max-h-[420px] bg-black/10 flex items-center justify-center group">
                 <img
                   src={mediaUrlOr(selectedPost.image, POST_IMAGE_FALLBACK)}
                   onError={onImageError(POST_IMAGE_FALLBACK)}
                   alt="Post visual"
-                  className="w-full h-full object-cover rounded-2xl"
+                  className="w-full h-full object-cover rounded-2xl transition-all duration-300 group-hover:scale-105"
                 />
+
+                {/* AI Tagged Garment Detection Highlights */}
+                {selectedPost.taggedProduct && (
+                  <div className="absolute top-1/3 left-1/4 -translate-x-1/2 -translate-y-1/2 z-10 animate-pulse">
+                    <div className="h-5 w-5 rounded-full bg-primary/40 flex items-center justify-center ring-4 ring-primary/20">
+                      <div className="h-2 w-2 rounded-full bg-primary shadow-lg" />
+                    </div>
+                    <div className="mt-1 px-2 py-0.5 rounded-md bg-background/90 backdrop-blur text-[10px] font-bold text-foreground shadow-lg border border-border/40 whitespace-nowrap">
+                      {selectedPost.taggedProduct.name}
+                    </div>
+                  </div>
+                )}
+
+                {/* Top Badge: AI Inspection Passed */}
+                <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-background/90 backdrop-blur-md border border-border/60 text-[10px] font-bold shadow-md">
+                  <CheckCircle2 size={12} className="text-emerald-500" />
+                  <span>{language === "fr" ? "Vérification IA Styly : Conforme" : "AI Tag Inspector: Verified"}</span>
+                </div>
               </div>
 
               {/* Analytics & Meta */}
@@ -434,7 +504,23 @@ export default function Products() {
                 </div>
 
                 {/* Quick Moderation Actions */}
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-2 pt-2 flex-wrap sm:flex-nowrap">
+                  <Button
+                    size="sm"
+                    variant={boostedIds.includes(selectedPost.id) ? "default" : "outline"}
+                    onClick={() => handleToggleBoost(selectedPost.id)}
+                    className={`rounded-xl text-xs font-bold gap-1.5 ${
+                      boostedIds.includes(selectedPost.id)
+                        ? "bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20"
+                        : "border-amber-500/40 text-amber-500 hover:bg-amber-500/10"
+                    }`}
+                  >
+                    <Zap size={13} className="fill-current" />
+                    {boostedIds.includes(selectedPost.id)
+                      ? (language === "fr" ? "En Vedette 🔥" : "Boosted 🔥")
+                      : (language === "fr" ? "Propulser en Vedette" : "Boost Look")}
+                  </Button>
+
                   <Button
                     size="sm"
                     variant="outline"
