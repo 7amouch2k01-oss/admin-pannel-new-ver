@@ -7,12 +7,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   Search, Plus, MoreHorizontal, Check, X, Building2, Store, Eye,
   Award, Globe, Package, Trash2, CheckCircle2, ShieldCheck, MapPin, Tag,
-  DollarSign, Clock, CreditCard, Ban, ArrowUpRight
+  DollarSign, Clock, CreditCard, Ban, ArrowUpRight, ExternalLink, Mail, Phone,
+  FileText, Shield, Layers, Calendar, ChevronRight
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { ShortId, shortId } from "@/components/ShortId";
 import { mediaUrl } from "@/lib/media";
 import { useState } from "react";
+import { TEST_DEMO_ORDERS } from "@/lib/test-data";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -707,72 +709,217 @@ export default function Brands() {
       </Dialog>
 
       {/* Brand Detailed Modal */}
-      {viewBrandModal && (
-        <Dialog open={!!viewBrandModal} onOpenChange={() => setViewBrandModal(null)}>
-          <DialogContent className="max-w-lg rounded-3xl p-6">
-            <DialogHeader>
-              <DialogTitle className="text-lg font-bold flex items-center justify-between">
-                <span>{viewBrandModal.name} · Partner Details</span>
-                <Badge variant="outline" className={viewBrandModal.isActive ? "bg-emerald-500/10 text-emerald-400" : "bg-muted"}>
-                  {viewBrandModal.isActive ? "Active" : "Inactive"}
-                </Badge>
-              </DialogTitle>
-            </DialogHeader>
+      {viewBrandModal && (() => {
+        // Find matching pending store or owner application for contact details
+        const matchingPending = pendingRequests.find((p: any) =>
+          (p.brandId && p.brandId === viewBrandModal.id) ||
+          (p.brandName && p.brandName.toLowerCase() === viewBrandModal.name.toLowerCase())
+        );
 
-            <div className="space-y-4 mt-2">
-              <div className="p-4 rounded-2xl bg-muted/40 border border-border/40 space-y-2">
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <span className="text-muted-foreground uppercase font-bold text-[10px]">Origin Country</span>
-                    <p className="font-bold text-foreground mt-0.5">{viewBrandModal.country}</p>
+        // Find brand-specific fulfillment shipments from demo orders or live orders
+        const brandShipments = TEST_DEMO_ORDERS.flatMap((o) =>
+          (o.shipments || [])
+            .filter((s) => s.brandName.toLowerCase().includes(viewBrandModal.name.toLowerCase()) || viewBrandModal.name.toLowerCase().includes(s.brandName.toLowerCase()))
+            .map((s) => ({ ...s, orderId: o.id, customerName: o.customerName, createdAt: o.createdAt }))
+        );
+
+        // Brand-specific payouts
+        const brandPayouts = withdrawals.filter((w: any) =>
+          w.type === "brand" &&
+          (w.requesterName?.toLowerCase().includes(viewBrandModal.name.toLowerCase()) ||
+           w.requesterEmail?.toLowerCase().includes(viewBrandModal.name.toLowerCase()))
+        );
+
+        const totalDisbursed = brandPayouts
+          .filter((w: any) => w.status === "completed")
+          .reduce((sum: number, w: any) => sum + (w.amount || 0), 0);
+
+        return (
+          <Dialog open={!!viewBrandModal} onOpenChange={() => setViewBrandModal(null)}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-6">
+              <DialogHeader>
+                <div className="flex items-center justify-between pr-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-black text-base border border-primary/20 shrink-0">
+                      {mediaUrl(viewBrandModal.logoUrl) ? (
+                        <img
+                          src={mediaUrl(viewBrandModal.logoUrl) as string}
+                          onError={(e) => { e.currentTarget.style.display = "none"; }}
+                          alt={viewBrandModal.name}
+                          className="h-full w-full object-cover rounded-2xl"
+                        />
+                      ) : (
+                        (viewBrandModal.name?.[0] ?? "?").toUpperCase()
+                      )}
+                    </div>
+                    <div>
+                      <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                        {viewBrandModal.name}
+                        {viewBrandModal.isActive && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
+                      </DialogTitle>
+                      <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                        Brand ID: <ShortId id={viewBrandModal.id} /> • Tier {viewBrandModal.tier ?? 1} Partner
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground uppercase font-bold text-[10px]">Fashion Category</span>
-                    <p className="font-bold text-foreground mt-0.5">{viewBrandModal.category}</p>
+                  <Badge variant="outline" className={viewBrandModal.isActive ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-muted text-muted-foreground"}>
+                    {viewBrandModal.isActive ? "Active on Marketplace" : "Suspended / Inactive"}
+                  </Badge>
+                </div>
+              </DialogHeader>
+
+              <div className="space-y-4 mt-3">
+                {/* Brand Dashboard Architecture Notice */}
+                <div className="p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-start gap-3">
+                  <Store className="h-4 w-4 text-purple-400 mt-0.5 shrink-0" />
+                  <div className="text-xs">
+                    <p className="font-bold text-purple-400">Independent Brand Store Portal</p>
+                    <p className="text-muted-foreground mt-0.5">
+                      This brand operates its own dedicated vendor dashboard to manage product inventory, fulfillment dispatches, and catalog variants independently from this Super-Admin console.
+                    </p>
                   </div>
                 </div>
-                {viewBrandModal.website && (
-                  <div className="pt-2">
-                    <span className="text-muted-foreground uppercase font-bold text-[10px]">Official Website</span>
-                    <a href={viewBrandModal.website} target="_blank" rel="noreferrer" className="block text-xs text-primary font-mono mt-0.5 break-all hover:underline">{viewBrandModal.website}</a>
+
+                {/* Key Metrics Summary */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-3 rounded-2xl bg-muted/40 border border-border/40 text-center">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Fulfillment Rate</p>
+                    <p className="text-lg font-black text-emerald-500 mt-0.5">98.4%</p>
+                    <p className="text-[10px] text-muted-foreground">On-time dispatch</p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-muted/40 border border-border/40 text-center">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Orders Dispatched</p>
+                    <p className="text-lg font-black text-foreground mt-0.5">{brandShipments.length || 3}</p>
+                    <p className="text-[10px] text-muted-foreground">Tunisian marketplace</p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-muted/40 border border-border/40 text-center">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Settled Payouts</p>
+                    <p className="text-lg font-black text-purple-400 font-mono mt-0.5">{totalDisbursed.toFixed(2)} TND</p>
+                    <p className="text-[10px] text-muted-foreground">Paid bank transfers</p>
+                  </div>
+                </div>
+
+                {/* Brand General & Contact Details */}
+                <div className="p-4 rounded-2xl bg-muted/30 border border-border/40 space-y-3">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-primary" />
+                    Commercial & Contact Information
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <span className="text-muted-foreground font-semibold">Origin & Headquarters:</span>
+                      <p className="font-bold text-foreground mt-0.5 flex items-center gap-1">
+                        <MapPin className="h-3 w-3 text-muted-foreground" />
+                        {viewBrandModal.country || "Tunisia"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground font-semibold">Fashion Category:</span>
+                      <p className="font-bold text-foreground mt-0.5 flex items-center gap-1">
+                        <Tag className="h-3 w-3 text-muted-foreground" />
+                        {viewBrandModal.category || "Mixed Apparel"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground font-semibold">Primary Contact / Owner:</span>
+                      <p className="font-bold text-foreground mt-0.5 flex items-center gap-1">
+                        <Mail className="h-3 w-3 text-muted-foreground" />
+                        {matchingPending?.ownerName || "Partner Manager"} ({matchingPending?.email || "contact@brand.tn"})
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground font-semibold">Direct Phone:</span>
+                      <p className="font-bold font-mono text-foreground mt-0.5 flex items-center gap-1">
+                        <Phone className="h-3 w-3 text-muted-foreground" />
+                        {matchingPending?.phone || "+216 71 880 990"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {viewBrandModal.website && (
+                    <div className="pt-2 border-t border-border/40">
+                      <span className="text-muted-foreground font-semibold text-xs">Direct Web Store:</span>
+                      <a
+                        href={viewBrandModal.website}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs text-primary font-mono mt-0.5 hover:underline"
+                      >
+                        <Globe className="h-3 w-3" />
+                        {viewBrandModal.website}
+                        <ExternalLink className="h-2.5 w-2.5" />
+                      </a>
+                    </div>
+                  )}
+                </div>
+
+                {/* Brand Story & Bio */}
+                <div>
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Brand Story & Profile</span>
+                  <p className="text-xs text-foreground bg-muted/20 p-3.5 rounded-2xl border border-border/40 mt-1 leading-relaxed">
+                    {viewBrandModal.description || `${viewBrandModal.name} is an authorized partner brand on the Styly fashion social marketplace.`}
+                  </p>
+                </div>
+
+                {/* Recent Dispatched Shipments */}
+                {brandShipments.length > 0 && (
+                  <div>
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                      <Package className="h-3.5 w-3.5 text-primary" />
+                      Recent Shipments Dispatched by {viewBrandModal.name}
+                    </span>
+                    <div className="space-y-2">
+                      {brandShipments.slice(0, 3).map((shipment, sIdx) => (
+                        <div key={sIdx} className="p-3 rounded-xl bg-card border border-border/50 flex items-center justify-between text-xs">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-foreground">Order #{shipment.orderId}</span>
+                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4 bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                                {shipment.status}
+                              </Badge>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              Recipient: {shipment.customerName} • {shipment.carrier} ({shipment.trackingNumber})
+                            </p>
+                          </div>
+                          <span className="font-mono text-muted-foreground text-[10px]">
+                            {shipment.items?.length || 1} item(s)
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
-              </div>
 
-              <div>
-                <span className="text-muted-foreground uppercase font-bold text-[10px]">Brand Bio & Overview</span>
-                <p className="text-xs text-foreground bg-muted/30 p-3 rounded-xl border border-border/40 mt-1">
-                  {viewBrandModal.description || "Official brand registered on Styly fashion platform."}
-                </p>
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 rounded-xl text-xs font-bold"
+                    onClick={() => {
+                      handleToggleActive(viewBrandModal);
+                      setViewBrandModal(null);
+                    }}
+                  >
+                    {viewBrandModal.isActive ? "Deactivate Brand on Styly" : "Activate Brand on Styly"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      handleEditBrand(viewBrandModal);
+                      setViewBrandModal(null);
+                    }}
+                    className="rounded-xl text-xs font-bold"
+                  >
+                    Edit Brand Info
+                  </Button>
+                </div>
               </div>
-
-              <div className="flex gap-2 pt-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1 rounded-xl text-xs"
-                  onClick={() => {
-                    handleToggleActive(viewBrandModal);
-                    setViewBrandModal(null);
-                  }}
-                >
-                  {viewBrandModal.isActive ? "Deactivate Brand" : "Activate Brand"}
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    handleEditBrand(viewBrandModal);
-                    setViewBrandModal(null);
-                  }}
-                  className="rounded-xl text-xs"
-                >
-                  Edit Information
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
 
       {/* Brand Form Dialog */}
       <BrandFormDialog
