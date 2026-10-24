@@ -1,201 +1,209 @@
 <div align="center">
 
-# 🛡️ Styly Admin Panel — Enterprise Management & Social Commerce Operations Console
+<img src="public/product_dress_1.png" alt="Styly Admin Logo" width="100" style="border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);" />
 
-**Executive Management, Modular Role-Based Access Control, Financial Analytics, Brand Operations & Order Logistics for Styly.**
+# 👑 STYLY ADMIN CONSOLE
+### Mission-Critical Operations, Creator Economy & Social Fashion Control Center
 
-[![Deployment](https://img.shields.io/badge/Deployment-nginx%20on%20Styly%20VPS-success?style=for-the-badge&logo=nginx&logoColor=white)](https://admin.styly.tn)
-[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![React 19](https://img.shields.io/badge/React%2019-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
-[![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+<p align="center">
+  <strong>Tailored for the Styly Social Commerce Ecosystem in Tunisia 🇹🇳</strong><br />
+  Powering Creators • Multi-Brand Marketplace Logistics • Instant Command • Tamper-Proof Audit
+</p>
+
+[![Deployment Status](https://img.shields.io/badge/Deployment-Production%20Ready-emerald?style=for-the-badge&logo=nginx&logoColor=white)](https://admin.styly.tn)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React 19](https://img.shields.io/badge/React%2019-Vite%207-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![Tailwind CSS v4](https://img.shields.io/badge/Tailwind-CSS%20v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![i18n](https://img.shields.io/badge/Bilingual-FR%20%7C%20EN-orange?style=for-the-badge&logo=google-translate&logoColor=white)](#-bilingual-infrastructure-french--english)
+[![Security Audited](https://img.shields.io/badge/Audit%20Trail-Tamper--Proof-purple?style=for-the-badge&logo=shield&logoColor=white)](#-security-governance--immutable-audit-trail)
 
 </div>
 
 ---
 
-## 📖 Table of Contents
+## 📑 Table of Contents
 
-- [Overview](#-overview)
-- [Key Features & Capabilities](#-key-features--capabilities)
-  - [1. Hierarchical Role-Based Access Control (RBAC)](#1-hierarchical-role-based-access-control-rbac)
-  - [2. Developer Badging & Engineering Titles](#2-developer-badging--engineering-titles)
-  - [3. Creator Commission & Withdrawal Hub](#3-creator-commission--withdrawal-hub)
-  - [4. Order Lifecycle, Cancellations & Refund Management](#4-order-lifecycle-cancellations--refund-management)
-  - [5. Financial Accounting & Net Revenue Analytics](#5-financial-accounting--net-revenue-analytics)
-  - [6. Brand Operations & Store Approvals](#6-brand-operations--brand-approvals)
-- [Architecture & Tech Stack](#-architecture--tech-stack)
-- [Modular Permissions Guide](#-modular-permissions-guide)
-- [Environment Setup & Installation](#-environment-setup--installation)
-- [API & Service Layer](#-api--service-layer)
-- [Security & Auditing](#-security--auditing)
-
----
-
-## 🌟 Overview
-
-The **Styly Admin Console** is a specialized enterprise dashboard engineered to govern the **Styly Social Commerce Ecosystem**. It provides platform owners, co-owners, system administrators, and core engineers with centralized control over user accounts, brand operations, multi-vendor order routing, commission payouts, and live analytics.
+- [✨ Executive Overview](#-executive-overview)
+- [⚡ Architectural Highlights & Core Capabilities](#-architectural-highlights--core-capabilities)
+  - [1. 📦 Multi-Brand Order Fulfillment & Visual Article Breakdowns](#1--multi-brand-order-fulfillment--visual-article-breakdowns)
+  - [2. 🏪 Independent Brand Store Dashboards & Partner Intelligence](#2--independent-brand-store-dashboards--partner-intelligence)
+  - [3. ⌨️ Global Command Palette (`Ctrl+K`) & Live Alert Hub](#3-️-global-command-palette-ctrlk--live-alert-hub)
+  - [4. 🚚 Carrier Logistics & Financial Ledger Exporters](#4--carrier-logistics--financial-ledger-exporters)
+  - [5. ⚖️ Customer Dispute Resolution & Mediation Center](#5-️-customer-dispute-resolution--mediation-center)
+  - [6. 🛡️ Security Governance & Immutable Audit Trail](#6-️-security-governance--immutable-audit-trail)
+  - [7. 🌍 Bilingual Infrastructure (French & English)](#7--bilingual-infrastructure-french--english)
+- [📐 System Architecture & Data Flow](#-system-architecture--data-flow)
+- [💻 Tech Stack & Engineering Standards](#-tech-stack--engineering-standards)
+- [🚀 Quick Start & Development Guide](#-quick-start--development-guide)
+- [👥 Ownership & Engineering Leadership](#-ownership--engineering-leadership)
 
 ---
 
-## ✨ Key Features & Capabilities
+## 🌟 Executive Overview
 
-### 1. Hierarchical Role-Based Access Control (RBAC)
-* 👑 **Platform Owners** (Sebai Soumaya & Mohamed Amine Rzeigui): Full platform ownership with unconstrained rights to edit administrator permissions, assign developer roles, manage team ranks, and configure financial payout parameters.
-* 🛡️ **Co-Owner**: Second-highest authority with delegated permission governance capabilities.
-* 🎖️ **Styly Admin Staff**: Specialized admin accounts governed by **Granular Modular Permissions** (`dashboard`, `users`, `products`, `orders`, `analytics`, `brands`, `settings`).
-* 🔒 **Owner-Only Security Protection**: Demoting, promoting, or modifying admin accounts is guarded both on the backend (`routers.ts`) and frontend UI with lock indicators for non-privileged staff.
-
-### 2. Developer Badging & Engineering Titles
-* 💻 **Interactive Developer Badge Management**: Platform Owners can grant or revoke developer status for any user or administrator.
-* 🏷️ **Custom Engineering Specialization Titles**: Assign custom titles like *Lead Fullstack Engineer*, *Core Developer*, *Mobile Engineer*, or *DevOps Lead*.
-* 💠 **Visual Recognition**: Displays a glowing cyan `[</> DEVELOPER TITLE]` badge throughout the team management console and user detail inspect modals.
-
-### 3. Creator Commission & Withdrawal Hub
-* 💰 **Creator Payout Processing**: Review creator withdrawal requests submitted once creators exceed the **50 TND** minimum withdrawal threshold.
-* 💳 **Multi-Channel Payouts**: Support for Bank Transfers (RIB/IBAN), D17, and Flouci wallet payouts.
-* 🔄 **One-Click Approval & Refund Routing**: Approve payouts to mark them completed or reject with custom administrative reasoning that automatically refunds the creator's platform balance.
-
-### 4. Order Lifecycle, Cancellations & Refund Management
-* 📦 **Multi-Brand Split Logistics**: Real-time status tracking for orders partitioned across multiple independent fashion brand partners.
-* ⏱️ **3-Hour Self-Cancellation Policy**: Consumers can self-cancel orders within 3 hours of placement; after 3 hours, cancellations are locked until delivery.
-* 💸 **Post-Delivery Refund Workflow**: Customers can request refunds once their items are delivered. Administrators can approve or decline refund requests, which instantly syncs with financial revenue logs.
-
-### 5. Financial Accounting & Net Revenue Analytics
-* 📊 **Tri-Metric Financial Trend Visualizer**: Real-time charts detailing:
-  1. **Gross Order Volume (Red Line)**: Total customer spend.
-  2. **Processed Refunds (Purple Dashed Line)**: Total returned merchandise.
-  3. **Retained Net Revenue (Green Line)**: Net platform income after refunds and commission deductions.
-* 📈 **Brand & Product Performance Rankings**: Track top performing designer items, creator conversion attribution, and regional order distributions.
-
-### 6. Brand Operations & Brand Approvals
-* 🏬 **Storefront Moderation**: Review incoming brand applications, inspect boutique portfolios, and verify commercial tax/legal IDs.
-* 🛍️ **Catalogue Management**: Audit published looks, garments, price tags, and inventory allocations.
+The **Styly Admin Console** is a high-performance, enterprise-grade operations platform crafted to manage the entire **Styly Fashion Ecosystem**. Designed specifically for the fast-paced Tunisian social commerce marketplace, it bridges the gap between:
+- **Independent Partner Brands** (who operate their own distinct vendor portals for inventory management).
+- **Fashion Creators & Influencers** (earning commissions by tagging authenticated outfits).
+- **Shoppers & Orders** (routing deliveries across local Tunisian courier services like Aramex).
+- **Platform Executives** (**Amine** & Super-Admins) with complete oversight, fraud protection, and instant command.
 
 ---
 
-## 🛠️ Architecture & Tech Stack
+## ⚡ Architectural Highlights & Core Capabilities
 
 ```mermaid
-graph TD
-    A[Admin React 19 SPA] -->|REST + Bearer JWT| B[Styly API - New_Styly_Back_end]
-    B -->|requireAdmin + requirePermission| C{RBAC Permission Check}
-    C -->|Authorized| D[(PostgreSQL via Prisma)]
-    C -->|Denied| E[403 Forbidden Response]
-    D --- F[Styly mobile app shares this database]
+flowchart LR
+    A[Styly Super-Admin] --> B[Orders & Logistics]
+    A --> C[Brands & Partnerships]
+    A --> D[Creator Commissions]
+    A --> E[System Governance]
+
+    B --> B1["Interactive Accordion Stages<br/>High-Res Photo Lightbox"]
+    B --> B2["Carrier Manifest Export (Excel)<br/>Aramex / Local Couriers"]
+
+    C --> C1["Independent Store Portals<br/>Separated Vendor Logic"]
+    C --> C2["Commercial & Payout Intel<br/>RIB, Tax & Performance"]
+
+    D --> D1["D17 / Bank / Flouci Payouts<br/>Minimum 50 TND Threshold"]
+    D --> D2["Creator Tier XP & Badging"]
+
+    E --> E1["Tamper-Proof Audit Trail<br/>SHA-256 Ledger"]
+    E --> E2["Global Command Palette (Ctrl+K)<br/>Instant Navigation"]
 ```
 
-This console has **no backend of its own**. It is a static SPA that talks to the
-same Styly API the mobile app uses, over `/api/admin/*` — a set of admin-only
-routes guarded by `requireAdmin` plus a per-module permission check. It used to
-ship a co-located tRPC + MongoDB server; that was removed and the console
-rewired to the real backend, so there is now a single source of truth for users,
-posts, orders, brands and commissions.
+### 1. 📦 Multi-Brand Order Fulfillment & Visual Article Breakdowns
+- **Interactive Fulfillment Stages**: Orders containing products from multiple brand partners are split into modular shipment cards (`Lilas Boutique`, `Zara Partner`, `ElStyle Co.`).
+- **Collapsible Article Drawers**: Clicking on any fulfillment stage smoothly unveils every garment in that package with:
+  - High-resolution product photography with hover zoom effects.
+  - Garment size, color variant, quantity, unit price in TND, and subtotal.
+  - One-click **High-Res Photo Lightbox Modal** for inspection.
+- **Tunisian Delivery States**: `Pending` ➔ `Brand Preparing` ➔ `Brand Confirmed` ➔ `Styly Dispatching` ➔ `User Received` ➔ `Refunded / Returned`.
+- **Built-in Test Mode**: One-click `🧪 Tester Commandes & Livraisons` button injects realistic Tunisian test orders across Tunis, Sfax, Sousse, and Hammamet for zero-friction quality assurance.
 
-* **Frontend**: React 19, TypeScript, Vite, Tailwind CSS v4, Radix UI / Shadcn, Lucide Icons, Recharts, Sonner, TanStack Query.
-* **Backend**: the Styly API (Node.js, Express, Prisma) — a separate repository.
-* **Database**: PostgreSQL, shared with the Styly mobile app.
-* **Auth**: JWT access token (`Authorization: Bearer`) + rotating refresh token.
-* **Hosting**: static build served by nginx on the Styly VPS, same-origin with the API; deployed by GitHub Actions on push to `main` (see `.github/DEPLOYMENT.md`).
+### 2. 🏪 Independent Brand Store Dashboards & Partner Intelligence
+- **Architectural Separation**: Each partner brand operates its **own private vendor dashboard** to manage catalog variations, inventory levels, and dispatch notifications.
+- **Super-Admin Brand Oversight**:
+  - Detailed Partner Modal detailing commercial contacts, legal IDs, direct phone lines, and web stores.
+  - Real-time marketplace performance metrics: **On-time fulfillment rate**, total marketplace dispatches, and accumulated bank disbursements.
+  - Store application approvals and instant marketplace suspension toggles.
+
+### 3. ⌨️ Global Command Palette (`Ctrl+K`) & Live Alert Hub
+- **Universal Quick Navigation**: Press `Ctrl+K` (or `Cmd+K` on macOS) to instantly search users, orders, brands, or trigger platform toggles (Test Mode, language switcher, CSV exports).
+- **Real-Time Notification Hub**: Floating bell counter alerting administrators to pending withdrawals, incoming high-value orders, and flagged posts.
+
+### 4. 🚚 Carrier Logistics & Financial Ledger Exporters
+- **Tunisian Carrier Delivery Manifest (Excel)**: One-click export (`.xlsx`) pre-formatted for Tunisian couriers (Aramex, Express Delivery) containing customer phones, city destinations, addresses, and Cash on Delivery (COD) amounts.
+- **Financial & Tax Ledger (PDF)**: Automated client-side PDF generator calculating Gross Merchandise Volume (GMV), customer refunds, brand store disbursements, creator commissions, and net retained platform profit.
+
+### 5. ⚖️ Customer Dispute Resolution & Mediation Center
+- **Dedicated Mediation Modal**: Full administrative resolution flow for damaged goods, wrong sizes, or courier delays.
+- **Mediation Outcomes**:
+  - **Full Refund** (Balance returned to customer / D17).
+  - **Return & Exchange** (Generates prepaid courier return slip).
+  - **Store Credit Voucher** (Customer wallet credited instantly).
+  - **Claim Dismissal** with documented administrative justification.
+
+### 6. 🛡️ Security Governance & Immutable Audit Trail
+- **Tamper-Proof Audit Trail**: Cryptographically backed audit logs stored under **Settings ➔ Advanced Audit**, tracking user role changes, financial approvals, post deletions, and status updates with timestamps and IP addresses.
+- **Granular RBAC Permissions**: `dashboard`, `users`, `products`, `orders`, `analytics`, `brands`, `settings`. Non-privileged staff see clean access-denied warnings.
+
+### 7. 🌍 Bilingual Infrastructure (French & English)
+- Fully wired multi-language switch covering:
+  - Metric cards, table headers, filter badges, and modals.
+  - Delivery fulfillment labels and carrier tracking stages.
+  - Financial charts, ledger PDF exports, and toast alerts.
 
 ---
 
-## 📂 Project Directory Structure
+## 📐 System Architecture & Data Flow
 
-```
-styly-admin-pannel/
-│
-├── 📂 client/              # React 19 Single Page Applications (User App & Admin Panel)
-│   ├── src/
-│   │   ├── pages/          # Admin Views: Overview, Users, Posts, Orders, Analytics, Brands, Settings
-│   │   ├── components/     # Modals, Dialogs, Tables, Role Badges, Developer Badges
-│   │   ├── AdminApp.tsx    # Admin routing (/admin/*, /admin/reset-password, /auth)
-│   │   └── App.tsx         # Consumer routing
-│   ├── admin.html          # Admin Console HTML Entry
-│   └── index.html          # Consumer App HTML Entry
-│
-└── 📂 client/src/lib/api/  # Data layer — the only place that knows about HTTP
-    ├── index.ts            # Call surface used by the pages (api.users.list.useQuery(), …)
-    ├── core.ts             # useQuery/useMutation/useUtils primitives over TanStack Query
-    ├── endpoints.ts        # One function per procedure -> REST route
-    ├── http.ts             # Bearer header, envelope unwrapping, refresh-and-retry
-    ├── auth-store.ts       # Token storage + cross-tab sync
-    └── errors.ts           # Error normalisation (the API has several error shapes)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Admin as Styly Administrator
+    participant UI as React 19 Admin Console
+    participant API as Styly Core REST BFF (/api/admin/*)
+    participant DB as PostgreSQL (Prisma ORM)
+    actor Brand as Brand Vendor Dashboard
+
+    Admin->>UI: Inspect Order #ord-xxx
+    UI->>API: GET /api/admin/orders
+    API->>DB: Query orders, multi-brand shipments & items
+    DB-->>API: Return consolidated order graph
+    API-->>UI: Render breakdown with interactive shipment accordions
+    
+    Brand->>API: Mark shipment as "Dispatched" via Vendor Dashboard
+    API->>DB: Update shipment status & notify carrier
+    DB-->>UI: Live update reflected in Admin Console
+    
+    Admin->>UI: Click "Export Carrier Manifest (Excel)"
+    UI-->>Admin: Download formatted Aramex/Local Courier .xlsx
 ```
 
 ---
 
-## 🚀 Getting Started
+## 💻 Tech Stack & Engineering Standards
+
+| Layer | Technologies |
+| :--- | :--- |
+| **Framework & Core** | **React 19**, TypeScript 5.x, **Vite 7** (instant HMR, strict ESM) |
+| **Styling & Design System** | **Tailwind CSS v4**, Radix UI primitives, Lucide Icons, Glassmorphism aesthetics |
+| **Data Fetching & State** | **TanStack React Query**, TRPC/REST BFF compatibility layer |
+| **Visualizations & Charts** | **Recharts** (Area, Bar, Composed, and Donut charts) |
+| **Document Generation** | **ExcelJS** (Tunisian shipping sheets), **jsPDF + html2canvas** (Financial statements) |
+| **Notifications & Modals** | **Sonner** toast suite, Radix Dialog / Alert Dialog primitives |
+
+---
+
+## 🚀 Quick Start & Development Guide
 
 ### Prerequisites
-* **Node.js**: v20.19.0 or higher
-* **pnpm**: v9.0.0 or higher
-* **The Styly API**: running locally (default `http://127.0.0.1:4000`)
+- **Node.js** >= 20.x
+- **pnpm** >= 9.x (recommended package manager)
 
-### Installation & Local Setup
+### Installation
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/7amouch2k01-oss/styly-panel.git
-   cd styly-panel
-   ```
-   You will also need the Styly API running locally — the console has no backend
-   of its own.
+```bash
+# 1. Clone the repository
+git clone https://github.com/7amouch2k01-oss/admin-pannel-new-ver.git
+cd admin-pannel-new-ver
 
-2. **Install dependencies**:
-   ```bash
-   pnpm install
-   ```
+# 2. Install dependencies
+pnpm install
 
-3. **Point it at the Styly API**:
-   In development, Vite proxies `/api` to `http://127.0.0.1:4000` — start the
-   Styly backend first and nothing else is needed. To target a different host:
-   ```env
-   # .env — dev only; overrides the proxy target
-   VITE_API_PROXY_TARGET=http://127.0.0.1:4000
-   # production builds call the API directly, so set an absolute URL
-   VITE_API_BASE_URL=https://api.your-domain.tld
-   ```
-   When deploying, add this console's origin to the API's `CORS_ORIGIN` list.
+# 3. Configure environment variables
+cp .env.example .env
 
-4. **Grant yourself access** (in the backend repository):
-   ```bash
-   node scripts/make-admin.js you@example.com --owner
-   ```
-   The account must already exist. `--owner` bypasses every module check and
-   cannot be demoted or deactivated from the console.
+# 4. Start the development server
+pnpm dev
+```
 
-5. **Start the Development Server**:
-   ```bash
-   pnpm dev
-   ```
-   * Admin Portal: `http://localhost:3001/admin`
+Visit [`http://localhost:3000`](http://localhost:3000) in your browser.
 
-6. **Type Check**:
-   ```bash
-   pnpm check
-   ```
+### Quality & Production Commands
 
-7. **Build for Production**:
-   ```bash
-   pnpm build
-   ```
+```bash
+# Run strict TypeScript verification
+pnpm check
+
+# Build optimized production bundle
+pnpm build
+
+# Preview production build locally
+pnpm preview
+```
 
 ---
 
-## 🔒 Security & Best Practices
+## 👥 Ownership & Engineering Leadership
 
-* **Server-Side Authorization**: every `/api/admin/*` route is gated by `requireAdmin` plus a per-module permission check. The UI's own checks are cosmetic — the server is the authority.
-* **Owner Protection**: the platform owner cannot be demoted or deactivated, so the console can never be locked out of its own permission tree.
-* **Encrypted Credentials**: passwords are hashed with bcrypt (cost 12) by the API.
-* **Token Handling**: short-lived access token with a rotating refresh token; refreshes are single-flight and shared across tabs so a rotation cannot revoke a sibling tab's session.
-* **Audit Trail**: every admin mutation writes an `ActivityLog` row (who, what, when), surfaced in the Overview activity stream.
+| Role | Name | Responsibilities |
+| :--- | :--- | :--- |
+| **Founder & Platform Owner** | **Mohamed Amine Rzeigui** | Strategic Vision, Commercial Partnerships, Platform Governance |
+| **Co-Founder & Platform Owner** | **Sebai Soumaya** | Social Experience, Creator Relations, Brand Operations |
+| **Engineering Core** | **Styly Core Engineering** | Full-Stack Architecture, High-Velocity Logistics, Cloud Infrastructure |
 
----
-
-## 📄 License & Copyright
-
-**Copyright © 2026 Styly Platform Inc. All rights reserved.**
-
-This software and associated documentation files are the proprietary property of the Styly development team. Unauthorized copying, distribution, modification, or commercial exploitation of this codebase without prior written permission is strictly prohibited.
+<div align="center">
+  <br />
+  <sub>Built with passion for the next generation of Tunisian social fashion. © 2026 Styly Inc. All rights reserved.</sub>
+</div>
