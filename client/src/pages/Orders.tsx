@@ -14,9 +14,11 @@ import { MessageSquare } from "lucide-react";
 import { TEST_DEMO_ORDERS } from "@/lib/test-data";
 import { FlaskConical } from "lucide-react";
 import { Download, FileSpreadsheet } from "lucide-react";
+import { POST_IMAGE_FALLBACK, onImageError } from "@/lib/media";
 import {
   Search, Package, Truck, MapPin, RefreshCw, X, ChevronDown, ChevronRight,
-  Eye, Check, Clock, CheckCircle2, AlertCircle, Ban, Undo2, ArrowUpRight, DollarSign, ShieldCheck, ShoppingCart
+  Eye, Check, Clock, CheckCircle2, AlertCircle, Ban, Undo2, ArrowUpRight, DollarSign, ShieldCheck, ShoppingCart,
+  Layers, ChevronUp, Image as ImageIcon, Sparkles
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle
@@ -56,6 +58,15 @@ export default function Orders() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [demoTestMode, setDemoTestMode] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [expandedShipments, setExpandedShipments] = useState<Record<string, boolean>>({});
+  const [viewingItemPhoto, setViewingItemPhoto] = useState<{ image: string; title: string } | null>(null);
+
+  const toggleShipmentExpand = (shipmentId: string) => {
+    setExpandedShipments(prev => ({
+      ...prev,
+      [shipmentId]: prev[shipmentId] === undefined ? false : !prev[shipmentId]
+    }));
+  };
 
   // Cancellation modal state
   const [cancelModalOrder, setCancelModalOrder] = useState<any | null>(null);
@@ -577,69 +588,252 @@ export default function Orders() {
       {/* Detailed Order Modal */}
       {selectedOrder && (
         <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
-          <DialogContent className="max-w-xl rounded-3xl p-6">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-6">
             <DialogHeader>
-              <DialogTitle className="text-lg font-bold">
-                Order <ShortId id={selectedOrder.id} className="text-base font-normal text-muted-foreground" /> Breakdown
-              </DialogTitle>
+              <div className="flex items-center justify-between pr-4">
+                <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                  <Package className="h-5 w-5 text-primary" />
+                  Order <ShortId id={selectedOrder.id} className="text-base font-normal text-muted-foreground" /> Breakdown
+                </DialogTitle>
+                <Badge
+                  variant="outline"
+                  className={ORDER_STATUS_CFG[selectedOrder.status]?.cls ?? "bg-gray-500/20 text-gray-400"}
+                >
+                  {t(ORDER_STATUS_CFG[selectedOrder.status]?.labelKey ?? "orders.statusPending")}
+                </Badge>
+              </div>
             </DialogHeader>
 
             <div className="space-y-4 mt-2">
+              {/* Recipient and Shipping details card */}
               <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-muted/40 border border-border/40">
                 <div>
-                  <p className="text-xs font-bold text-muted-foreground uppercase">Recipient</p>
-                  <p className="font-bold text-sm text-foreground mt-0.5">{selectedOrder.customerName}</p>
+                  <p className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                    Recipient
+                  </p>
+                  <p className="font-bold text-sm text-foreground mt-1">{selectedOrder.customerName}</p>
                   <p className="text-xs text-muted-foreground">{selectedOrder.customerEmail || "No email"}</p>
                   <p className="text-xs text-muted-foreground font-mono">{selectedOrder.phone || "No phone"}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-muted-foreground uppercase">Shipping Address</p>
-                  <p className="text-xs text-foreground mt-0.5">{selectedOrder.shippingAddress || "Standard Address"}</p>
-                  <p className="text-xs text-muted-foreground">{selectedOrder.shippingAddress || "—"}</p>
-                  <p className="text-xs font-bold text-primary mt-1">Payment: {selectedOrder.paymentMethod?.toUpperCase()}</p>
+                  <p className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-1.5">
+                    <MapPin className="h-3 w-3 text-primary" />
+                    Shipping Address
+                  </p>
+                  <p className="text-xs text-foreground mt-1 font-medium">{selectedOrder.shippingAddress || "Standard Address"}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border-primary/20">
+                      Payment: {selectedOrder.paymentMethod?.toUpperCase()}
+                    </Badge>
+                    <span className="text-xs font-bold font-mono text-foreground">
+                      {(selectedOrder.totalAmount ?? 0).toFixed(2)} TND
+                    </span>
+                  </div>
                 </div>
               </div>
 
+              {/* Shipment Fulfillment Stages & Detailed Items breakdown */}
               <div>
-                <p className="text-xs font-bold text-muted-foreground uppercase mb-2">Shipment Fulfillment Stages</p>
-                <div className="space-y-2">
-                  {(selectedOrder.shipments || []).map((s: any) => (
-                    <div key={s.id} className="p-3 rounded-xl bg-card border border-border/50 flex items-center justify-between">
-                      <div>
-                        <p className="font-bold text-xs">{s.brandName}</p>
-                        <p className="text-[10px] text-muted-foreground font-mono">Status: {SHIP_STATUS_CFG[s.status as keyof typeof SHIP_STATUS_CFG]?.label ?? s.status}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        {s.status !== "delivered" && s.status !== "canceled" && s.status !== "refunded" && (
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              handleAdminApproveDelivery(s.id);
-                              setSelectedOrder(null);
-                            }}
-                            className="h-7 text-xs bg-emerald-600 hover:bg-emerald-500 rounded-lg text-white"
-                          >
-                            Approve Delivered
-                          </Button>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Truck className="h-3.5 w-3.5 text-primary" />
+                    Shipment Fulfillment Stages ({selectedOrder.shipments?.length || 0})
+                  </p>
+                  <span className="text-[11px] text-muted-foreground">
+                    Click card or arrow to reveal items & photos
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  {(selectedOrder.shipments || []).map((s: any, idx: number) => {
+                    const isExpanded = expandedShipments[s.id] ?? true; // expanded by default so photos are immediately visible
+                    const itemsList = s.items || selectedOrder.items || [];
+                    const statusMeta = SHIP_STATUS_CFG[s.status as keyof typeof SHIP_STATUS_CFG];
+                    const StatusIcon = statusMeta?.icon || Package;
+
+                    return (
+                      <div
+                        key={s.id || idx}
+                        className="rounded-2xl bg-card border border-border/60 hover:border-border transition-all overflow-hidden shadow-xs"
+                      >
+                        {/* Interactive Shipment Header Bar */}
+                        <div
+                          onClick={() => toggleShipmentExpand(s.id)}
+                          className="p-3.5 flex items-center justify-between cursor-pointer hover:bg-muted/30 transition-colors select-none"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                              <StatusIcon className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-bold text-sm text-foreground">{s.brandName}</p>
+                                <Badge variant="outline" className={`text-[10px] py-0 px-1.5 h-4 font-medium ${statusMeta?.cls || ""}`}>
+                                  {statusMeta?.label ?? s.status}
+                                </Badge>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
+                                {s.carrier ? `${s.carrier} • ` : ""}{s.trackingNumber ? `Track: ${s.trackingNumber}` : "No tracking code"}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {/* Action buttons inside stage */}
+                            {s.status !== "delivered" && s.status !== "canceled" && s.status !== "refunded" && (
+                              <Button
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAdminApproveDelivery(s.id);
+                                  setSelectedOrder(null);
+                                }}
+                                className="h-7 text-xs bg-emerald-600 hover:bg-emerald-500 rounded-xl text-white shadow-xs"
+                              >
+                                Approve Delivered
+                              </Button>
+                            )}
+                            {s.status === "delivered" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAdminProcessRefund(selectedOrder.id);
+                                  setSelectedOrder(null);
+                                }}
+                                className="h-7 text-xs border-purple-500/30 text-purple-500 hover:bg-purple-500/10 rounded-xl"
+                              >
+                                Refund
+                              </Button>
+                            )}
+                            <div className="p-1 rounded-lg text-muted-foreground hover:text-foreground">
+                              {isExpanded ? (
+                                <ChevronUp className="h-4 w-4 transition-transform duration-200" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4 transition-transform duration-200" />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Collapsible / Scroll-down Ordered Items with High-res Photos */}
+                        {isExpanded && (
+                          <div className="border-t border-border/40 bg-muted/20 p-3.5 space-y-2.5 animate-in fade-in-50 duration-200">
+                            <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground uppercase px-1">
+                              <span>Ordered Articles & Details</span>
+                              <span>{itemsList.length} item{itemsList.length > 1 ? "s" : ""}</span>
+                            </div>
+
+                            {itemsList.length === 0 ? (
+                              <p className="text-xs text-muted-foreground italic py-2 text-center">
+                                No individual item details attached to this shipment.
+                              </p>
+                            ) : (
+                              <div className="space-y-2">
+                                {itemsList.map((item: any, itemIdx: number) => {
+                                  const photoUrl = item.image || item.photo || POST_IMAGE_FALLBACK;
+                                  return (
+                                    <div
+                                      key={itemIdx}
+                                      className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-card border border-border/50 hover:border-border transition-colors group"
+                                    >
+                                      {/* Item Photo & Thumbnail preview */}
+                                      <div className="flex items-center gap-3 min-w-0">
+                                        <div
+                                          onClick={() => setViewingItemPhoto({ image: photoUrl, title: item.name || "Product Photo" })}
+                                          className="relative w-14 h-14 rounded-xl overflow-hidden bg-muted border border-border/60 shrink-0 cursor-zoom-in group/img shadow-2xs"
+                                          title="Click to view full photo"
+                                        >
+                                          <img
+                                            src={photoUrl}
+                                            alt={item.name || "Product"}
+                                            onError={onImageError(POST_IMAGE_FALLBACK)}
+                                            className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-200"
+                                          />
+                                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/img:opacity-100 flex items-center justify-center transition-opacity text-white">
+                                            <Eye className="h-4 w-4" />
+                                          </div>
+                                        </div>
+
+                                        {/* Item Title & Specs */}
+                                        <div className="min-w-0">
+                                          <p className="font-semibold text-xs text-foreground truncate">
+                                            {item.name || "Article sans nom"}
+                                          </p>
+                                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                            {item.size && (
+                                              <Badge variant="secondary" className="text-[10px] py-0 px-1.5 h-4 font-mono">
+                                                Taille: {item.size}
+                                              </Badge>
+                                            )}
+                                            {item.color && (
+                                              <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-4 text-muted-foreground">
+                                                {item.color}
+                                              </Badge>
+                                            )}
+                                            <span className="text-[10px] text-muted-foreground">
+                                              Qté: <strong className="text-foreground">{item.quantity || 1}</strong>
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Item Price */}
+                                      <div className="text-right shrink-0">
+                                        <p className="text-xs font-bold font-mono text-foreground">
+                                          {((item.price ?? 0) * (item.quantity ?? 1)).toFixed(2)} TND
+                                        </p>
+                                        {(item.quantity ?? 1) > 1 && (
+                                          <p className="text-[10px] text-muted-foreground font-mono">
+                                            ({(item.price ?? 0).toFixed(2)} / u)
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
                         )}
-                        {s.status === "delivered" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              handleAdminProcessRefund(selectedOrder.id);
-                              setSelectedOrder(null);
-                            }}
-                            className="h-7 text-xs border-purple-500/30 text-purple-500 rounded-lg"
-                          >
-                            Refund
-                          </Button>
-                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Item Full Photo Lightbox Modal */}
+      {viewingItemPhoto && (
+        <Dialog open={!!viewingItemPhoto} onOpenChange={() => setViewingItemPhoto(null)}>
+          <DialogContent className="max-w-md rounded-3xl p-4 overflow-hidden">
+            <DialogHeader>
+              <DialogTitle className="text-sm font-bold truncate pr-6">
+                {viewingItemPhoto.title}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="mt-2 rounded-2xl overflow-hidden bg-black/5 dark:bg-black/40 border border-border/50 aspect-square flex items-center justify-center">
+              <img
+                src={viewingItemPhoto.image}
+                alt={viewingItemPhoto.title}
+                onError={onImageError(POST_IMAGE_FALLBACK)}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="flex justify-end mt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setViewingItemPhoto(null)}
+                className="rounded-xl text-xs"
+              >
+                Close Preview
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
